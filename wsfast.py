@@ -77,15 +77,15 @@ def translator(model):
     basename = os.path.splitext(os.path.basename(model))[0]
     translator_output_file = "tmp_"+basename+".aslan"
     if verbosity:
-        print("Executing translator " + connector + " on "+model)
-    p1 = subprocess.Popen(["java","-jar",connector,model,"-o",translator_output_file],universal_newlines=True,stderr=subprocess.PIPE, stdout=subprocess.DEVNULL)
+        print("Executing translator " + connector + " on "+model + " output file " + translator_output_file)
+    p1 = subprocess.Popen(["java","-jar",connector,model,"-o",translator_output_file],universal_newlines=True,stderr=subprocess.PIPE)
 
     try:
         out,err = p1.communicate(timeout=5)
     except subprocess.TimeoutExpired:
         p1.kill()
         print("Error: " + connector + " timed out.")
-    if "FATAL" in err:
+    if "FATAL" in err or "ERROR" in err or "WARNING" in err:
         # there was a FATAL error in executing the translator
         if verbosity:
             print(err)
@@ -93,6 +93,8 @@ def translator(model):
             print("Error translator")
         exit()
 
+    if verbosity:
+        print("Ending translator")
     return translator_output_file
 
 if __name__ == "__main__":
