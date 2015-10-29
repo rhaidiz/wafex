@@ -3,6 +3,7 @@
 import argparse
 import subprocess
 import os.path
+import aat
 
 # external software
 CONNECTOR_1_4 = "connector/aslanpp-connector-1.4.1.jar"
@@ -31,21 +32,35 @@ def main():
     # first thing is to run the translator, by default we use version 1.4.1
     aslan_model = translator(load_model)
 
+    print("Executing model checker")
     # we can now run the model checker, by default we use Cl-Atse in local mode
     attack_trace_file = local_cl_atse(aslan_model)
 
+
+    # we now check the generated file
+    msc = generate_msc(attack_trace_file,aslan_model)
+
+    # read the output and parse it
+    aat.parse_aat(msc)
+
+def generate_msc(attack_trace_file,aslan_model):
+    global verbosity
     tmp_attack_trace = ""
     f = open(attack_trace_file)
     for line in f.readlines():
         if "SUMMARY ATTACK_FOUND" in line:
-        # we found an attack, so we generate the MSC
-            generate_msc(attack_trace_file,aslan_model)
-            break
+            # we found an attack, so we generate the MSC
+            p1 = subprocess.Popen(["java","-jar",connector,"-ar",attack_trace_file,aslan_model],universal_newlines=True,stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            out,err = p1.communicate(timeout=10)
+            i = out.find("MESSAGES:")
+            msc = out[i+9:]
+            if verbosity:
+                print(msc)
+            return msc
         elif "SUMMARY NO_ATTACK_FOUND" in line:
-        # no attack found, we don't need the MSC
+            # no attack found, we don't need the MSC
             print("NO ATTACK FOUND")
-            break
-
+            return ""
 
 def local_cl_atse(aslan):
     global verbosity
@@ -58,17 +73,18 @@ def local_cl_atse(aslan):
     except subprocess.TimeoutExpired:
         p1.kill()
         print("Error: model checker timed out")
+        exit()
     atse_output_descriptor.write(out)
     atse_output_descriptor.close()
     return atse_output
     
-def generate_msc(attack_file,aslan_model):
-    global verbosity
-    global connector
-    p1 = subprocess.Popen(["java","-jar",connector,"-ar",attack_file,aslan_model],universal_newlines=True,stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-    out,err = p1.communicate(timeout=10)
-    i = out.find("MESSAGES:")
-    print(out[i+9:])
+#def generate_msc(attack_file,aslan_model):
+#    global verbosity
+#    global connector
+#    p1 = subprocess.Popen(["java","-jar",connector,"-ar",attack_file,aslan_model],universal_newlines=True,stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#    out,err = p1.communicate(timeout=10)
+#    i = out.find("MESSAGES:")
+#    print(out[i+9:])
 
 def translator(model):
     global verbosity
@@ -85,13 +101,18 @@ def translator(model):
     except subprocess.TimeoutExpired:
         p1.kill()
         print("Error: " + connector + " timed out.")
-    if "FATAL" in err or "ERROR" in err or "WARNING" in err:
-        # there was a FATAL error in executing the translator
+        exit()
+
+    if "FATAL" in err or "ERROR" in err:
+        # there was an error in executing the translator
         if verbosity:
             print(err)
         else:
             print("Error translator")
         exit()
+
+    if verbosity and "WARNING" in err:
+        print(err)
 
     if verbosity:
         print("Ending translator")
