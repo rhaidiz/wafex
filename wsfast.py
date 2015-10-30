@@ -41,7 +41,9 @@ def main():
     msc = generate_msc(attack_trace_file,aslan_model)
 
     # read the output and parse it
-    aat.parse_aat(msc)
+    tracia = aat.parse_aat(msc)
+
+    aat.extend_trace_sqli(tracia)
 
 def generate_msc(attack_trace_file,aslan_model):
     global verbosity
