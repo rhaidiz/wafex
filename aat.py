@@ -21,20 +21,19 @@ def parse_aat(aat):
     
     lines = aat.split("\n")
     result = []
-    count = 0
     for line in lines:
         if line:
-            if DEBUG:
-                print(line + " -- ")
-            request_regexp = re.compile(r'(.*?)->\*(.*?):(.*?).request\((.*)\)')
-            response_regexp = re.compile(r'(.*?)->\*(.*?):response\((.*?)\)(?:.tuple\((.*?)\))?')
+            request_regexp = re.compile(r'(.*?)->\*(.*?):(?:.*?).http_request\((.*)\)')
+            response_regexp = re.compile(r'(.*?)->\*(.*?):http_response\((.*?)\)')
             tmp = request_regexp.findall(line)
             if not tmp:
                 tmp = response_regexp.findall(line)
             if len(tmp) == 1:
                 result.append(tmp[0])
     if DEBUG:
+        print(__name__ + " result")
         print(result)
+        print("################")
     return result
 
 # how to execute sqlmap for injection:
@@ -58,28 +57,33 @@ def parse_aat(aat):
 # takes as input an array of trace to be executed in the Alice -> Bob notation
 # [(A , B , message)]
 def extend_trace_sqli(trace):
-    DEBUG = 0
+    DEBUG = 1
     # there should be only one sqli injection point in our traces
     # but we create an array for further extension
     sqli = []
     injection_point = ""
     for idx, message in enumerate(trace):
-        if message and len(message) == 4:
+        if message and len(message) == 3:
             # read message and check if it's a request and require an SQLi
-            if (not message[0] == "webapplication") and "sqli" in message[3] and not "tuple" in message[3]:
+            if (not message[0] == "webapplication") and "sqli" in message[len(message)-1] and not "tuple" in message[len(message)-1]:
                 if DEBUG:
-                    print(message)
                     print("there is a sqli")
+                    print(message)
+                    print("---------------")
                 injection_point = idx
                 sqli.append(["a",[]])
             # we are exploiting a sqli, find the column that should be retrieved
             # .([a-z]*?).tuple
-            elif "tuple" in message[3] and "sqli" in message[3]:
+            elif "webapplication" in message[1] and "tuple" in message[len(message)-1] and "sqli" in message[len(message)-1]:
                 param_regexp = re.compile(r'.([a-z]*?).tuple\(')
-                params = param_regexp.findall(message[3])
+                params = param_regexp.findall(message[len(message)-1])
                 if DEBUG:
-                    print(params)
                     print("exploiting sqli here")
+                    print("Message:")
+                    print(message)
+                    print("Params: ")
+                    print(params)
+                    print("--------------------")
                 # create a multiple array with params from different lines
                 sqli[injection_point][1].append((idx,params))
                 sqli.append(["e",injection_point])
@@ -89,7 +93,7 @@ def extend_trace_sqli(trace):
         print(sqli)
     return sqli
 
-def execute_attack(aat,extension_sqli):
+#def execute_attack(aat,extension_sqli):
 
 
       #  tuple_regexp = re.compile(r'tuple\(.*\)')

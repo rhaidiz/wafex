@@ -37,9 +37,9 @@ entity Environment {
 		get: text;	
 		post: text;
 		% request 
-		request(message): message;	
+		http_request(message): message;	
 		% response
-		response(message): message;	
+		http_response(message): message;	
 		article_page: text;
 		login_page: text;
 
@@ -78,7 +78,7 @@ entity Session(Webapplication: agent) {
 			%@ url_request http://www.example.com/search.php?field=Searchquery
 			
 			%? ->* Actor: ?IP.articles.aid.(?Searchquery);					
-			? ->* Actor: ?IP.request(article_page.(?Searchquery));					
+			? ->* Actor: ?IP.http_request(article_page.(?Searchquery));					
 			SQLquery := Searchquery;
 
 			% at this point we should talk to the database, but we're now
@@ -98,9 +98,9 @@ entity Session(Webapplication: agent) {
 			
 			select{on(Response = tuple(SQLquery)):{
 				if(!(error(SQLquery))){
-					Actor ->* IP: response(tuple(SQLquery));
+					Actor ->* IP: http_response(tuple(SQLquery));
 				}else{
-					Actor ->* IP: response(errorPage.tuple(SQLquery));
+					Actor ->* IP: http_response(errorPage.tuple(SQLquery));
 				}
 			}}
 			
@@ -111,7 +111,7 @@ entity Session(Webapplication: agent) {
 			% tuple().
 			%@ url_request http://www.example.com/login.php?username=Username&password=Password
 
-			select{on(IP ->* Actor: request(login_page.users.uname.?Username)):{  						
+			select{on(IP ->* Actor: IP.http_request(login_page.users.uname.?Username)):{  						
 				SQLparam1 := Username;
 				%assert b: SQLquery != tuple(?);
 				select{on( SQLparam1 = tuple(?) ):{
@@ -119,7 +119,7 @@ entity Session(Webapplication: agent) {
 					Response := no_tuple;
 				}}
 				select{on( Response = no_tuple):{
-					Actor ->* IP: response(secureFolder);
+					Actor ->* IP: http_response(secureFolder);
 				}}
 			}}
 		}
