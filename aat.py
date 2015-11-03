@@ -1,40 +1,14 @@
 #!/usr/local/bin/python3.5
 
-# This module will provide functionality for parsing an
-# ASLAn++ attack trace in the Alice and Bob motation
+"""
+This module will provide functionality for parsing an
+ASLAn++ attack trace in the Alice and Bob motation.
+"""
+
 
 import re
 
 DEBUG = 0
-
-
-# returns one array with requests and responses in order of execution
-def parse_aat(aat):
-    DEBUG = 0
-    # this regexp matches requests
-    #request_regexp = re.compile(r'(.*?)->\*(.*?):(.*?).request\((.*)\)|(.*?)->\*(.*?):response\((.*?)\)')
-    #request_regexp = re.compile(r'(.*?)->\*(.*?):(.*?).request\((.*)\)|(.*?)->\*(.*?):response\((.*?)\)(?:.tuple\((.*?)\))?')
-    #request_regexp = re.compile(r'(.*?)->\*(.*?):response\((.*?)\)')
-    #request_regexp = re.compile(r'(.*?)->\*(.*?):(.*?).request\((.*)\)')
-
-    aat = aat.replace(" ","")
-    
-    lines = aat.split("\n")
-    result = []
-    for line in lines:
-        if line:
-            request_regexp = re.compile(r'(.*?)->\*(.*?):(?:.*?).http_request\((.*)\)')
-            response_regexp = re.compile(r'(.*?)->\*(.*?):http_response\((.*?)\)')
-            tmp = request_regexp.findall(line)
-            if not tmp:
-                tmp = response_regexp.findall(line)
-            if len(tmp) == 1:
-                result.append(tmp[0])
-    if DEBUG:
-        print(__name__ + " result")
-        print(result)
-        print("################")
-    return result
 
 # how to execute sqlmap for injection:
 # possibilities:
@@ -105,6 +79,7 @@ def execute_attack(aat,extension_sqli):
             print("exploit sqli here")
         elif "n" in extension_sqli[idx][0]:
             # normal http request
+            print("normal request")
 
 
 
