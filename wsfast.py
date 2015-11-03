@@ -43,7 +43,9 @@ def main():
     # read the output and parse it
     tracia = aat.parse_aat(msc)
 
-    aat.extend_trace_sqli(tracia)
+    sqli_matrix = aat.extend_trace_sqli(tracia)
+
+    aat.execute_attack(tracia,sqli_matrix)
 
 def generate_msc(attack_trace_file,aslan_model):
     global verbosity

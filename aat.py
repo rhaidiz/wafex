@@ -93,18 +93,19 @@ def extend_trace_sqli(trace):
         print(sqli)
     return sqli
 
-#def execute_attack(aat,extension_sqli):
+# takes an attack trace and an extension matrix, and execute the attack
+def execute_attack(aat,extension_sqli):
+    # loop the aat and find when to perform an attack
+    for idx, message in enumerate(aat):
+        if "a" in extension_sqli[idx][0]:
+            # perform an sqli attack here
+            print("sqli, attack")
+        elif "e" in extension_sqli[idx][0]:
+            # exploit the sqli here
+            print("exploit sqli here")
+        elif "n" in extension_sqli[idx][0]:
+            # normal http request
 
 
-      #  tuple_regexp = re.compile(r'tuple\(.*\)')
-      #  sqli_regexp  = re.compile(r'sqli')
-      #  has_tuple = tuple_regexp.findall(req[3])
-      #  has_sqli  = sqli_regexp.findall(req[3])
-      #  if not has_tuple and has_sqli:
-      #      print("execute sqlmap")
-      #  print(req[3])
-      #  #print(req)
-
-    #print(responses)
 
 
