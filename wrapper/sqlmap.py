@@ -2,49 +2,56 @@
 
 """
 Wrapper around the sqlmap tool. This wrapper provides 
-convenient methods for executing sqlmap and parsing its 
-output.
+convenient methods for executing sqlmap and returning 
+its output.
 """
 #import ../global_var
 import subprocess
 import pexpect
 from sys import platform as _platform
 
+import time
 import requests
 import json
 #from threading import Thread # This is the right package name
 #from threading import Event # This is the right package name
 import threading
 
-#options = " --auth-type=basic --auth-cred=regis:password -u https://157.27.244.25/joomla3.4.4/index.php?option=com_contenthistory&view=history&list[select]=injection -p list[select] -T ppdqj_session --v 3"
-options = " --auth-type=basic --auth-cred=regis:password -u https://157.27.244.25/chained/chained/index.php -T users --v 3"
-SQLMAP_LOCATION = "xterm -e ./sqlmap/sqlmap.py" + options
-
-SQLMAP_API = "./sqlmap/sqlmapapi.py -s"
+SQLMAP_API = "./sqlmapapi.py -s"
 
 SQLMAP_SERVER_IP = "127.0.0.1"
 SQLMAP_SERVER_PORT = "8775"
 SQLMAP_BASE_URL = "http://"+SQLMAP_SERVER_IP+":"+SQLMAP_SERVER_PORT
 
-# notes: sqlmap executes and, at the ends, report a log in ~/.sqlmap/ folder
-# probably the best option is to not capture the output from sqlmap, but to
-# retrieve it from that folder after the execution.
+sqlmap_process = ""
 
-# write a python wrapper for the sqlmapapi.py script
-
-# run sqlmap with the specified arguments
-def __exec_sqlmap_api():
-    print("Executing sqlmap")
-    # executing the sqlmapapi 
-    p1 = subprocess.Popen(SQLMAP_API.split(" "),stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-    #while True:
-    #    line = p1.stdout.readline()
-    #    print(line.decode('utf-8'))
-    #    if not line: break
-   # out,err = p1.communicate()
-   # print(out)
-    
+def sqlmap_run_api_server():
+    global sqlmap_process
+    print("Executing")
+    # NOTE: when executing sqlmapapi.py the working directory must be ./sqlmap/ otherwise when the analysis
+    # is started, it raises an not fil execptio 'cause it cannot find sqlmap.py
+    sqlmap_process = subprocess.Popen(SQLMAP_API.split(" "),stderr=subprocess.PIPE, stdout=subprocess.PIPE,cwd="./sqlmap/")
+    print("""
+     _____  _____ _                             
+    /  ___||  _  | |                            
+    \ `--. | | | | |      _ __ ___   __ _ _ __  
+     `--. \| | | | |     | '_ ` _ \ / _` | '_ \ 
+     /\__/ /\ \/' / |____ | | | | | | (_| | |_) |
+     \____/  \_/\_\_____/ |_| |_| |_|\__,_| .__/ 
+                                  | |      API    
+                                  |_|""")
+    while True:
+        line = sqlmap_process.stdout.readline()
+        if "REST-JSON API server connected to IPC database" in line.decode('utf-8'):
+            # the webserver is up and running
+            return
+        if not line: break
     print("done")
+
+def sqlmap_kill():
+    global sqlmap_process
+    sqlmap_process.kill()
+
 
 # set a value for an option to a task_id
 def sqlmap_option_set(option,value,task_id):
@@ -99,6 +106,7 @@ def sqlmap_start_scan(task_id,url_to_scan):
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
         print("JSON decoder error")
+        print(str(e))
         #print(e)
         exit()
     if json_result['success'] == True:
@@ -138,6 +146,21 @@ def sqlmap_get_data(task_id):
         exit()
     return json_result
 
+
+def sqlmap_kill_task(task_id):
+    url = SQLMAP_BASE_URL+"/scan/"+task_id+"/kill"
+    r = requests.get(url)
+    try:
+        json_result = json.loads(r.text)
+    except json.decoder.JSONDecodeError as e:
+        print("JSON decoder error")
+        exit()
+    if json_result['success'] == True:
+        return json_result
+    else:
+        return False
+
+
 class MyThread(threading.Thread):
     def __init__(self, event,task):
         threading.Thread.__init__(self)
@@ -157,9 +180,14 @@ class MyThread(threading.Thread):
 
 
 if __name__ == "__main__":
+    #---------------------#
+    # Testing the wrapper #
+    #---------------------#
+    sqlmap_run_api_server()
     task = sqlmap_new_task()
+    print("Created a new task " + task)
 
-    # configuring the scanner for testing the chained attack case
+    ## configuring the scanner for testing the chained attack case
     print(sqlmap_option_set("authType","Basic",task))
     print(sqlmap_option_set("authCred","regis:password",task))
     print(sqlmap_option_set("data","username=a&password=0",task))
@@ -185,6 +213,7 @@ if __name__ == "__main__":
             print("Analysis terminated")
             print(sqlmap_get_data(task))
             stopFlag.set()
+            sqlmap_kill()
         else:
             print("Analysis in progress ... ")
 
