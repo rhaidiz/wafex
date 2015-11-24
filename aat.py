@@ -49,7 +49,7 @@ def extend_trace_sqli(trace):
             # we are exploiting a sqli, find the column that should be retrieved
             # .([a-z]*?).tuple
             elif "webapplication" in message[1] and "tuple" in message[len(message)-1] and "sqli" in message[len(message)-1]:
-                param_regexp = re.compile(r'([a-z]*?).tuple\(')
+                param_regexp = re.compile(r'(.*?).tuple\(')
                 params = param_regexp.findall(message[len(message)-1])
                 if DEBUG:
                     print("exploiting sqli here")
