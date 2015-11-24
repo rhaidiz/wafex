@@ -40,7 +40,7 @@ entity Environment {
 		http_request(message): message;	
 		% response
 		http_response(message): message;	
-		article_page: text;
+		history_comp: text;
 		login_page: text;
 
 	clauses
@@ -73,16 +73,16 @@ entity Session(Webapplication: agent) {
 		body{
 		
 			% Search: in here we model the presence of a search field.
-			% a search query is issued with a SQLi that retrieves username
+			% a search query is performed with a SQLi that retrieves username
 			% and password
-			%@ url_request http://www.example.com/search.php?field=Searchquery
+			%@ history_comp = https://157.27.244.25/joomla3.4.4/index.php?option=com_contenthistory&view=history&list[select]=injectio
 			
 			%? ->* Actor: ?IP.articles.aid.(?Searchquery);					
-			? ->* Actor: ?IP.http_request(article_page.(?Searchquery));					
+			? ->* Actor: ?IP.http_request(history_comp.(?Searchquery));					
 			SQLquery := Searchquery;
 
 			% at this point we should talk to the database, but we're now
-			% embedding its behavior in here
+			% embedding the database in here
 		
 			% raw query	
 			select{

@@ -74,10 +74,9 @@ def translator(model):
 
     if "FATAL" in err or "ERROR" in err:
         # there was an error in executing the translator
-        if global_var.verbosity:
-            print(err)
-        else:
-            print("Error translator")
+        print("# ---- Error translator ---- #")
+        print(err)
+        print("# -------------------------- #")
         exit()
 
     if global_var.verbosity and "WARNING" in err:
