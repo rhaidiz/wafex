@@ -82,8 +82,6 @@ def translator(model):
     if global_var.verbosity and "WARNING" in err:
         print(err)
 
-    if global_var.verbosity:
-        print("Ending translator")
     return translator_output_file
 
 

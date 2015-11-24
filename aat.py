@@ -8,7 +8,7 @@ ASLAn++ attack trace in the Alice and Bob motation.
 
 import re
 
-DEBUG = 0
+DEBUG = 1
 
 # how to execute sqlmap for injection:
 # possibilities:
@@ -49,7 +49,7 @@ def extend_trace_sqli(trace):
             # we are exploiting a sqli, find the column that should be retrieved
             # .([a-z]*?).tuple
             elif "webapplication" in message[1] and "tuple" in message[len(message)-1] and "sqli" in message[len(message)-1]:
-                param_regexp = re.compile(r'.([a-z]*?).tuple\(')
+                param_regexp = re.compile(r'([a-z]*?).tuple\(')
                 params = param_regexp.findall(message[len(message)-1])
                 if DEBUG:
                     print("exploiting sqli here")
@@ -69,11 +69,12 @@ def extend_trace_sqli(trace):
 
 # takes an attack trace and an extension matrix, and execute the attack
 def execute_attack(aat,extension_sqli):
+    print("Executing the attack trace")
     # loop the aat and find when to perform an attack
     for idx, message in enumerate(aat):
         if "a" in extension_sqli[idx][0]:
             # perform an sqli attack here
-            print("sqli, attack")
+            print("sqli attack")
         elif "e" in extension_sqli[idx][0]:
             # exploit the sqli here
             print("exploit sqli here")
