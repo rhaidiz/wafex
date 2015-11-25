@@ -13,6 +13,7 @@ def main():
     # command line parsing
     parser = argparse.ArgumentParser()
     parser.add_argument("model",help="The model written in ASLAn++")
+    parser.add_argument("--mc-only",help="Run the model-checker only",action="store_true")
     parser.add_argument("--verbose", help="Increase the output verbosity",action="store_true")
     args = parser.parse_args()
     load_model = args.model
@@ -32,15 +33,15 @@ def main():
     attack_trace_file = mc.local_cl_atse(aslan_model)
 
 
-    # we now check the generated file
+    # generate the msc 
     msc = mc.generate_msc(attack_trace_file,aslan_model)
+    if not args.mc_only:
+         # read the output and parse it
+         tracia = mc.parse_aat(msc)
 
-    # read the output and parse it
-    tracia = mc.parse_aat(msc)
+         sqli_matrix = aat.extend_trace_sqli(tracia)
 
-    sqli_matrix = aat.extend_trace_sqli(tracia)
-
-    aat.execute_attack(tracia,sqli_matrix)
+         aat.execute_attack(tracia,sqli_matrix)
 
 
     
