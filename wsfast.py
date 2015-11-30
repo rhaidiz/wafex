@@ -28,7 +28,6 @@ def main():
     # first thing is to run the translator, by default we use version 1.4.1
     aslan_model = mc.translator(load_model)
 
-    print("Executing model checker")
     # we can now run the model checker, by default we use Cl-Atse in local mode
     attack_trace_file = mc.local_cl_atse(aslan_model)
 
