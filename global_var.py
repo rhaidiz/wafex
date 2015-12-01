@@ -3,5 +3,5 @@
 """
 Variables that are shared among modules.
 """
-verbosity = None
-
+verbosity = False
+DEBUG = False

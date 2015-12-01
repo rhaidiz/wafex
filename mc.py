@@ -32,6 +32,7 @@ def generate_msc(attack_trace_file,aslan_model):
             # we found an attack, so we generate the MSC
             i = out.find("MESSAGES:")
             msc = out[i+9:]
+            cprint("Abstract Attack Trace found:","INFO")
             if global_var.verbosity:
                 print(out)
             else:
@@ -48,7 +49,7 @@ def generate_msc(attack_trace_file,aslan_model):
 
 def local_cl_atse(aslan):
     global CLATSE
-    cprint("Executing CL-Atse locally mode","INFO")
+    cprint("Executing CL-Atse locally","INFO")
     atse_output = os.path.splitext(aslan)[0] + ".atse"
     atse_output_descriptor = open(atse_output,"w")
     p1 = subprocess.Popen([CLATSE,aslan],universal_newlines=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -95,22 +96,21 @@ def translator(model):
 
 # returns one array with requests and responses in order of execution
 def parse_aat(aat):
-    DEBUG = 0
 
     aat = aat.replace(" ","")
     lines = aat.split("\n")
     result = []
     for line in lines:
         if line:
-            request_regexp = re.compile(r'(.*?)->\*(.*?):(?:.*?).http_request\((.*)\)')
-            response_regexp = re.compile(r'(.*?)->\*(.*?):http_response\((.*?)\)')
+            request_regexp = re.compile(r'(.*?)\*->\*(.*?):(?:.*?).http_request\((.*)\)')
+            response_regexp = re.compile(r'(.*?)\*->\*(.*?):http_response\((.*?)\)')
             tmp = request_regexp.findall(line)
             if not tmp:
                 tmp = response_regexp.findall(line)
             if len(tmp) == 1:
                 result.append(tmp[0])
-    if DEBUG:
+    if global_var.DEBUG:
         cprint(__name__ + " result","DEBUG")
-        print(result)
+        cprint(result,"DEBUG")
         cprint("################","DEBUG")
     return result

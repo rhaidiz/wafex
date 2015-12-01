@@ -13,6 +13,7 @@ def main():
     # command line parsing
     parser = argparse.ArgumentParser()
     parser.add_argument("model",help="The model written in ASLAn++")
+    parser.add_argument("--debug",help="Print debug messages",action="store_true")
     parser.add_argument("--mc-only",help="Run the model-checker only",action="store_true")
     parser.add_argument("--verbose", help="Increase the output verbosity",action="store_true")
     args = parser.parse_args()
@@ -22,7 +23,8 @@ def main():
     if not os.path.isfile(load_model):
         print("Error: " + load_model + " file not found")
         exit()
-    global_var.verbosity = args.verbose 
+    global_var.verbosity = args.verbose
+    global_var.DEBUG = args.debug
     
 
     # first thing is to run the translator, by default we use version 1.4.1
@@ -44,13 +46,6 @@ def main():
 
 
     
-#def generate_msc(attack_file,aslan_model):
-#    global verbosity
-#    global connector
-#    p1 = subprocess.Popen(["java","-jar",connector,"-ar",attack_file,aslan_model],universal_newlines=True,stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#    out,err = p1.communicate(timeout=10)
-#    i = out.find("MESSAGES:")
-#    print(out[i+9:])
 
 
 if __name__ == "__main__":
