@@ -10,6 +10,7 @@ representing the MSC.
 import os.path
 import subprocess
 import re
+import linecache
 
 # custom import
 import global_var
@@ -95,22 +96,56 @@ def translator(model):
 
 
 # returns one array with requests and responses in order of execution
-def parse_aat(aat):
+# [ [src_line,(line)], ... ]
 
+
+def parse_aat(aat,attack_trace_file):
     aat = aat.replace(" ","")
     lines = aat.split("\n")
     result = []
+    request_regexp = re.compile(r'(.*?)\*->\*(.*?):(?:.*?).http_request\((.*)\)')
+    response_regexp = re.compile(r'(.*?)\*->\*(.*?):http_response\((.*?)\)')
+    rule = 2
+    atse_output_descriptor = open(attack_trace_file,"r")
+    line_num = 0
     for line in lines:
         if line:
-            request_regexp = re.compile(r'(.*?)\*->\*(.*?):(?:.*?).http_request\((.*)\)')
-            response_regexp = re.compile(r'(.*?)\*->\*(.*?):http_response\((.*?)\)')
-            tmp = request_regexp.findall(line)
-            if not tmp:
-                tmp = response_regexp.findall(line)
-            if len(tmp) == 1:
-                result.append(tmp[0])
+            tmp_request = request_regexp.findall(line)
+            tmp_response = None
+            if not tmp_request: # not a request
+                # search for a response
+                tmp_response = response_regexp.findall(line)
+            if len(tmp_request) == 1:
+                print(tmp_request)
+                # we have found a request
+                line_num = __get_line_number(atse_output_descriptor,rule)
+                line_num = line_num[0]
+                result.append((line_num,tmp_request[0]))
+                llll = linecache.getline("Joomla_nd.aslan++",int(line_num))
+                print(llll)
+            elif len(tmp_response) == 1:
+                # we have found a response
+                line_num = __get_line_number(atse_output_descriptor,rule)
+                line_num = line_num[0]
+                result.append((line_num,tmp_response[0]))
+            rule += 1
     if global_var.DEBUG:
         cprint(__name__ + " result","DEBUG")
         cprint(result,"DEBUG")
         cprint("################","DEBUG")
     return result
+
+
+def __get_line_number(file_descriptor,rule):
+    # search for the line code
+    found_line = False
+    for line in file_descriptor:
+        if line.startswith(str(rule)+" %"):
+            found_line = True
+        if found_line & line.startswith("  RULES"):
+            line_regexp = re.compile(r'step_(?:.*?)__line_([1-9]*)')
+            line_num = line_regexp.findall(line)
+            if global_var.DEBUG:
+                cprint("line number: " + line,"DEBUG")
+                cprint("line number: " + line_num[0],"DEBUG")
+            return line_num

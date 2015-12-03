@@ -38,7 +38,7 @@ def main():
     msc = mc.generate_msc(attack_trace_file,aslan_model)
     if not args.mc_only:
          # read the output and parse it
-         tracia = mc.parse_aat(msc)
+         tracia = mc.parse_aat(msc,attack_trace_file)
 
          sqli_matrix = aat.extend_trace_sqli(tracia)
 

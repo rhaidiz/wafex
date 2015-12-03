@@ -8,7 +8,11 @@ ASLAn++ attack trace in the Alice and Bob motation.
 
 import re
 import global_var
+import requests
 from my_print import cprint
+# disable warnings when making unverified HTTPS requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 # how to execute sqlmap for injection:
 # possibilities:
@@ -84,6 +88,23 @@ def execute_attack(aat,extension_sqli):
             if global_var.DEBUG:
                 cprint("normal request","DEBUG")
 
+# parameters for configuring the requests maker:
+# Requests group
+# - basic authentication params
+# - SSL verification: True, False, CA path
+# - proxy
+# - proxy-cred
+# - sqlmap usage
+
+def execute_request(request):
+    url = 'https://157.27.244.25/chained'
+    headers = {'user-agent': 'my-app/0.0.1'}
+    proxy = {"http" : "http://127.0.0.1:8080","https":"https://127.0.0.1:8080"}
+
+    r = requests.get(url, headers=headers, proxies=proxy, verify=False, auth=('regis','password'))
+    print(r.status_code)
 
 
+if __name__ == "__main__":
+    string_to_request("c")
 
