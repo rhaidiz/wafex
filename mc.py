@@ -10,7 +10,6 @@ representing the MSC.
 import os.path
 import subprocess
 import re
-import linecache
 
 # custom import
 import global_var
@@ -96,7 +95,7 @@ def translator(model):
 
 
 # returns one array with requests and responses in order of execution
-# [ [src_line,(line)], ... ]
+# [ (src_line,(line)), ... ]
 
 
 def parse_aat(aat,attack_trace_file):
@@ -119,15 +118,15 @@ def parse_aat(aat,attack_trace_file):
                 print(tmp_request)
                 # we have found a request
                 line_num = __get_line_number(atse_output_descriptor,rule)
-                line_num = line_num[0]
-                result.append((line_num,tmp_request[0]))
-                llll = linecache.getline("Joomla_nd.aslan++",int(line_num))
-                print(llll)
+                if line_num:
+                    line_num = line_num[0]
+                    result.append((int(line_num),tmp_request[0]))
             elif len(tmp_response) == 1:
                 # we have found a response
                 line_num = __get_line_number(atse_output_descriptor,rule)
-                line_num = line_num[0]
-                result.append((line_num,tmp_response[0]))
+                if line_num:
+                    line_num = line_num[0]
+                    result.append((int(line_num),tmp_response[0]))
             rule += 1
     if global_var.DEBUG:
         cprint(__name__ + " result","DEBUG")
@@ -143,9 +142,9 @@ def __get_line_number(file_descriptor,rule):
         if line.startswith(str(rule)+" %"):
             found_line = True
         if found_line & line.startswith("  RULES"):
-            line_regexp = re.compile(r'step_(?:.*?)__line_([1-9]*)')
+            line_regexp = re.compile(r'step_(?:.*?)__line_([0-9]*)')
             line_num = line_regexp.findall(line)
             if global_var.DEBUG:
                 cprint("line number: " + line,"DEBUG")
-                cprint("line number: " + line_num[0],"DEBUG")
+                cprint(line_num,"DEBUG")
             return line_num
