@@ -25,7 +25,7 @@ SQLMAP_BASE_URL = "http://"+SQLMAP_SERVER_IP+":"+SQLMAP_SERVER_PORT
 
 sqlmap_process = ""
 
-def sqlmap_run_api_server():
+def run_api_server():
     global sqlmap_process
     print("Executing")
     # NOTE: when executing sqlmapapi.py the working directory must be ./sqlmap/ otherwise when the analysis
@@ -48,13 +48,13 @@ def sqlmap_run_api_server():
         if not line: break
     print("done")
 
-def sqlmap_kill():
+def kill():
     global sqlmap_process
     sqlmap_process.kill()
 
 
 # set a value for an option to a task_id
-def sqlmap_option_set(option,value,task_id):
+def set_option(option,value,task_id):
     url = SQLMAP_BASE_URL+"/option/"+task_id+"/set"
     params = { option : value }
     print("task " + task_id +" setting " + option + " to " + value )
@@ -70,7 +70,7 @@ def sqlmap_option_set(option,value,task_id):
     else:
         return False
 
-def sqlmap_new_task():
+def new_task():
     url = SQLMAP_BASE_URL+"/task/new"
     r = requests.get(url)
     try:
@@ -83,7 +83,7 @@ def sqlmap_new_task():
     else:
         return False
 
-def sqlmap_del_task(task_id):
+def del_task(task_id):
     url = SQLMAP_BASE_URL+"/task/"+task_id+"/delete"
     r = requests.get(url)
     try:
@@ -94,11 +94,11 @@ def sqlmap_del_task(task_id):
     return json_result['success']
 
 # when sqlmap dumps something, it is saved in ~/.sqlmap/output/<target>/dump/
-def retrieve_sqlmap_result():
+def sqlmap_result():
         print("reading result")
 
 
-def sqlmap_start_scan(task_id,url_to_scan):
+def start_scan(url_to_scan,task_id):
     url = SQLMAP_BASE_URL+"/scan/"+task_id+"/start"
     params = { "url" : url_to_scan }
     r = requests.post(url,json=params)
@@ -114,7 +114,7 @@ def sqlmap_start_scan(task_id,url_to_scan):
     else:
         return False
 
-def sqlmap_get_status(task_id):
+def get_status(task_id):
     url = SQLMAP_BASE_URL+"/scan/"+task_id+"/status"
     r = requests.get(url)
     try:
@@ -125,7 +125,7 @@ def sqlmap_get_status(task_id):
     return json_result['status']
 
 
-def sqlmap_get_log(task_id):
+def get_log(task_id):
     url = SQLMAP_BASE_URL+"/scan/"+task_id+"/log"
     r = requests.get(url)
     try:
@@ -136,7 +136,7 @@ def sqlmap_get_log(task_id):
     return json_result['log']
 
 
-def sqlmap_get_data(task_id):
+def get_data(task_id):
     url = SQLMAP_BASE_URL+"/scan/"+task_id+"/data"
     r = requests.get(url)
     try:
@@ -147,7 +147,7 @@ def sqlmap_get_data(task_id):
     return json_result
 
 
-def sqlmap_kill_task(task_id):
+def kill_task(task_id):
     url = SQLMAP_BASE_URL+"/scan/"+task_id+"/kill"
     r = requests.get(url)
     try:

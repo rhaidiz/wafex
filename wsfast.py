@@ -8,7 +8,7 @@ import aat
 import mc
 import parser
 import global_var
-
+from my_print import cprint
 
 def main():
     # command line parsing
