@@ -6,17 +6,18 @@ import os.path
 # custom import
 import aat
 import mc
+import parser
 import global_var
 
 
 def main():
     # command line parsing
-    parser = argparse.ArgumentParser()
-    parser.add_argument("model",help="The model written in ASLAn++")
-    parser.add_argument("--debug",help="Print debug messages",action="store_true")
-    parser.add_argument("--mc-only",help="Run the model-checker only",action="store_true")
-    parser.add_argument("--verbose", help="Increase the output verbosity",action="store_true")
-    args = parser.parse_args()
+    cmd = argparse.ArgumentParser()
+    cmd.add_argument("model",help="The model written in ASLAn++")
+    cmd.add_argument("--debug",help="Print debug messages",action="store_true")
+    cmd.add_argument("--mc-only",help="Run the model-checker only",action="store_true")
+    cmd.add_argument("--verbose", help="Increase the output verbosity",action="store_true")
+    args = cmd.parse_args()
     load_model = args.model
 
     # check if file exists
@@ -28,21 +29,33 @@ def main():
     
 
     # first thing is to run the translator, by default we use version 1.4.1
-    aslan_model = mc.translator(load_model)
+    file_aslan_model, err = mc.translator(load_model)
 
-    # we can now run the model checker, by default we use Cl-Atse in local mode
-    attack_trace_file = mc.local_cl_atse(aslan_model)
+    # check if an error has been generated from the translator
+    if "FATAL" in err or "ERROR" in err:
+        # there was an error in executing the translator
+        cprint("Translator generated an error","ERROR")
+        print(err)
+        exit()
+
+    if global_var.verbosity and "WARNING" in err:
+        print(err)
 
 
-    # generate the msc 
-    msc = mc.generate_msc(attack_trace_file,aslan_model)
+    # we can now run the model checker, by default we use Cl-Atse locally 
+    file_attack_trace = mc.local_cl_atse(file_aslan_model)
+
+
+    # translate the attack trace in msc 
+    msc_output = mc.generate_msc(file_attack_trace,file_aslan_model)
+
     if not args.mc_only:
          # read the output and parse it
-         tracia = mc.parse_aat(msc,attack_trace_file)
+         msc_table = parser.msc(msc_output,file_attack_trace)
 
-         sqli_matrix = aat.extend_trace_sqli(tracia)
+         sqli_matrix = parser.sqli(msc_table)
 
-         aat.execute_attack(tracia,sqli_matrix)
+         aat.execute_attack(msc_table,sqli_matrix,load_model)
 
 
     

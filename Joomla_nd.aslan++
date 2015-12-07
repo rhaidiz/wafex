@@ -326,9 +326,9 @@ entity Session(Webapplication, Database, Filesystem: agent) {
 
 	goals %of session 
 		authorization:
-			%[](!(iknows(adminPanel))); 																							%data extraction + authentication bypass
+			[](!(iknows(adminPanel))); 																							%data extraction + authentication bypass
 			%[](!(iknows(secureFile))); 																							%data extraction + authentication bypass
-			[](!(iknows(f_file(?)))); 																									% filesystem access
+			%[](!(iknows(f_file(?)))); 																									% filesystem access
 			%[](!(isInFS(evil_file))); 																									% filesystem access
 			%[]( forall M1. exists M2.!iknows(M1) & M1 = tuple(M2) &  M2 != f_file(?)); % database access
 			%[](( forall M1. ( iknows(tuple(M1)) => M1 = f_file(?)))); 									% database access
