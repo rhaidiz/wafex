@@ -5,7 +5,8 @@ Wrapper around the sqlmap tool. This wrapper provides
 convenient methods for executing sqlmap and returning 
 its output.
 """
-#import ../global_var
+import global_var
+from  my_print import cprint
 import subprocess
 import pexpect
 from sys import platform as _platform
@@ -23,15 +24,14 @@ SQLMAP_SERVER_IP = "127.0.0.1"
 SQLMAP_SERVER_PORT = "8775"
 SQLMAP_BASE_URL = "http://"+SQLMAP_SERVER_IP+":"+SQLMAP_SERVER_PORT
 
-sqlmap_process = ""
+sqlmap_process = None
 
 def run_api_server():
     global sqlmap_process
-    print("Executing")
     # NOTE: when executing sqlmapapi.py the working directory must be ./sqlmap/ otherwise when the analysis
     # is started, it raises an not fil execptio 'cause it cannot find sqlmap.py
     sqlmap_process = subprocess.Popen(SQLMAP_API.split(" "),stderr=subprocess.PIPE, stdout=subprocess.PIPE,cwd="./sqlmap/")
-    print("""
+    cprint("""
      _____  _____ _                             
     /  ___||  _  | |                            
     \ `--. | | | | |      _ __ ___   __ _ _ __  
@@ -39,17 +39,15 @@ def run_api_server():
      /\__/ /\ \/' / |____ | | | | | | (_| | |_) |
      \____/  \_/\_\_____/ |_| |_| |_|\__,_| .__/ 
                                   | |      API    
-                                  |_|""")
+                                  |_|""","INFO")
     while True:
         line = sqlmap_process.stdout.readline()
         if "REST-JSON API server connected to IPC database" in line.decode('utf-8'):
             # the webserver is up and running
             return
         if not line: break
-    print("done")
 
 def kill():
-    global sqlmap_process
     sqlmap_process.kill()
 
 
@@ -57,14 +55,13 @@ def kill():
 def set_option(option,value,task_id):
     url = SQLMAP_BASE_URL+"/option/"+task_id+"/set"
     params = { option : value }
-    print("task " + task_id +" setting " + option + " to " + value )
+    cprint("task " + task_id +" setting " + option + " to " + value ,"DEBUG")
     r = requests.post(url,json=params)
     try:
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
-        print("JSON decoder error")
+        cprint("JSON decoder error","ERROR")
         exit()
-    #print(json_result)
     if json_result['success'] == True:
         return True
     else:
@@ -76,7 +73,7 @@ def new_task():
     try:
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
-        print("JSON decoder error")
+        cprint("JSON decoder error","ERROR")
         exit()
     if json_result['success'] == True:
         return json_result['taskid']
@@ -89,14 +86,9 @@ def del_task(task_id):
     try:
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
-        print("JSON decoder error")
+        cprint("JSON decoder error","ERROR")
         exit()
     return json_result['success']
-
-# when sqlmap dumps something, it is saved in ~/.sqlmap/output/<target>/dump/
-def sqlmap_result():
-        print("reading result")
-
 
 def start_scan(url_to_scan,task_id):
     url = SQLMAP_BASE_URL+"/scan/"+task_id+"/start"
@@ -105,9 +97,8 @@ def start_scan(url_to_scan,task_id):
     try:
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
-        print("JSON decoder error")
-        print(str(e))
-        #print(e)
+        cprint("JSON decoder error","ERROR")
+        cprint(str(e),"DEBUG")
         exit()
     if json_result['success'] == True:
         return json_result['engineid']
@@ -120,7 +111,7 @@ def get_status(task_id):
     try:
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
-        print("JSON decoder error")
+        cprint("JSON decoder error","ERROR")
         exit()
     return json_result['status']
 
@@ -131,7 +122,7 @@ def get_log(task_id):
     try:
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
-        print("JSON decoder error")
+        cprint("JSON decoder error","ERROR")
         exit()
     return json_result['log']
 
@@ -142,7 +133,7 @@ def get_data(task_id):
     try:
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
-        print("JSON decoder error")
+        cprint("JSON decoder error","ERROR")
         exit()
     return json_result
 
@@ -153,7 +144,7 @@ def kill_task(task_id):
     try:
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
-        print("JSON decoder error")
+        cprint("JSON decoder error","ERROR")
         exit()
     if json_result['success'] == True:
         return json_result

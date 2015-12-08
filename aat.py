@@ -17,7 +17,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 import wrapper.sqlmap
-
+import json
 import threading
 
 # takes an attack trace and an extension matrix, and execute the attack
@@ -91,15 +91,32 @@ def execute_sqlmap(url,method,params,data_to_extract):
     cprint(data_to_extract,"DEBUG")
 
     stopFlag = threading.Event()
+    sqlmap_output = ""
     while not stopFlag.wait(5):
         r = wrapper.sqlmap.get_status(task)
         if "terminated" in r:
             cprint("Analysis terminated","DEBUG")
-            cprint(wrapper.sqlmap.get_data(task),"DEBUG")
+            sqlmap_output = wrapper.sqlmap.get_data(task)
             stopFlag.set()
             wrapper.sqlmap.kill()
         else:
             cprint("Analysis in progress ... ","DEBUG")
+    
+    # Let's parse the data extracted
+    cprint(sqlmap_output["data"][2]["value"]["username"]["values"],"DEBUG")
+    extracted_values = {}
+    for tblcol in data_to_extract:
+        tbl_list = tblcol.split(".")
+        cprint(tbl_list[1],"DEBUG")
+        tmp_table = tbl_list[0]
+        tmp_column = tbl_list[1]
+        try:
+            extracted_values[tmp_table]
+        except KeyError:
+            extracted_values[tmp_table] = {}
+        extracted_values[tmp_table][tmp_column] = sqlmap_output["data"][2]["value"][tmp_column]["values"]
+            
+        cprint(extracted_values,"DEBUG")
 
 if __name__ == "__main__":
     execute_normal_request("c")

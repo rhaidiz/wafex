@@ -9,11 +9,16 @@ import global_var
 def cprint(msg,t="INFO"):
     t_msg = ""
     if t == "ERROR":
-        t_msg = "\033[1;31m[ERROR]\t" + msg +"\033[0m"
+         print("\033[1;31m[ERROR]\t",end="")
+         print(msg,end="")
+         print("\033[0m")
     elif t == "INFO":
-        t_msg = "[INFO]\t" + msg 
+         print("[INFO]\t",end="")
+         print(msg,end="") 
     elif t == "WARNING":
-        t_msg = "\033[1;33m[WARNING]\t" + msg+"\033[0m"
+         print("\033[1;33m[WARNING]\t",end="")
+         print(msg,end="")
+         print("\033[0m")
     elif t == "DEBUG":
         t_msg = msg
     if (t == "DEBUG") & global_var.DEBUG:
