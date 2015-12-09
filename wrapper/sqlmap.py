@@ -5,7 +5,7 @@ Wrapper around the sqlmap tool. This wrapper provides
 convenient methods for executing sqlmap and returning 
 its output.
 """
-import global_var
+#import global_var
 from  my_print import cprint
 import subprocess
 import pexpect
@@ -97,7 +97,7 @@ def start_scan(url_to_scan,task_id):
     try:
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
-        cprint("JSON decoder error","ERROR")
+        cprint("Start scan JSON decoder error","ERROR")
         cprint(str(e),"DEBUG")
         exit()
     if json_result['success'] == True:
@@ -161,7 +161,7 @@ class MyThread(threading.Thread):
     def run(self):
         while not self.stopped.wait(5):
             print("my thread")
-            r = sqlmap_get_status(self.task)
+            r = get_status(self.task)
             if "terminated" in r:
                 print("Analysis terminated")
                 self.stopped.set()
@@ -174,18 +174,18 @@ if __name__ == "__main__":
     #---------------------#
     # Testing the wrapper #
     #---------------------#
-    sqlmap_run_api_server()
-    task = sqlmap_new_task()
+    run_api_server()
+    task = new_task()
     print("Created a new task " + task)
 
     ## configuring the scanner for testing the chained attack case
-    print(sqlmap_option_set("authType","Basic",task))
-    print(sqlmap_option_set("authCred","regis:password",task))
-    print(sqlmap_option_set("data","username=a&password=0",task))
-    print(sqlmap_option_set("getTables","true",task))
+    print(set_option("authType","Basic",task))
+    print(set_option("authCred","regis:password",task))
+    print(set_option("data","username=a&password=0",task))
+    print(set_option("getTables","true",task))
 
     # starting the scan
-    print(sqlmap_start_scan(task,"https://157.27.244.25/chained/chained/index.php"))
+    print(start_scan(task,"https://157.27.244.25/chained/chained/index.php"))
 
     stopFlag = threading.Event()
 
@@ -199,12 +199,12 @@ if __name__ == "__main__":
     # blocking code that checks when sqlmap ends
     while not stopFlag.wait(5):
         print("my thread")
-        r = sqlmap_get_status(task)
+        r = get_status(task)
         if "terminated" in r:
             print("Analysis terminated")
-            print(sqlmap_get_data(task))
+            print(get_data(task))
             stopFlag.set()
-            sqlmap_kill()
+            kill()
         else:
             print("Analysis in progress ... ")
 

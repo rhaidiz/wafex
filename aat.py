@@ -23,6 +23,7 @@ import threading
 # takes an attack trace and an extension matrix, and execute the attack
 def execute_attack(msc_table,extension_sqli,file_aslanpp):
     cprint("Executing the attack trace","INFO")
+    sqlmap_output = None
 
     # loop the msc_table and find when to perform an attack
     for idx, message in enumerate(msc_table):
@@ -33,17 +34,17 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                  method = None
                  params = []
                  data_to_extract = []
-                 url, method, params, data_to_extract = parser.sqli_details(idx,msc_table, extension_sqli, file_aslanpp)
+                 url, method, params, data_to_extract = parser.request_details(idx,msc_table, file_aslanpp, extension_sqli)
                  # for the execution we need (url,method,params,data_to_extract)
                  # data_to_extract => table.column
-                 execute_sqlmap(url,method,params,data_to_extract)
+                 sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
              elif "e" in extension_sqli[idx][0]:
                  # exploit the sqli here, which is also a normal request where we use
                  # the result from sqlmap
-                 cprint("exploit sqli here","DEBUG")
+                 cprint("exploit sqli here, crafted request","DEBUG")
+                 cprint(parser.request_details(idx,msc_table, file_aslanpp),"DEBUG")
              elif "n" in extension_sqli[idx][0]:
                  # normal http request
-                 
                  cprint(msc_table[idx][0],"DEBUG")
 
 # parameters for configuring the requests maker:
@@ -84,6 +85,9 @@ def execute_sqlmap(url,method,params,data_to_extract):
         cprint(tbl_list[0],"DEBUG")
         wrapper.sqlmap.set_option("tbl",tbl_list[0],task)
 
+    #wrapper.sqlmap.set_option("data","username=?&password=?",task)
+    #wrapper.sqlmap.set_option("tbl","users",task)
+
     wrapper.sqlmap.start_scan(url,task)
     cprint(url,"DEBUG")
     cprint(method,"DEBUG")
@@ -98,13 +102,13 @@ def execute_sqlmap(url,method,params,data_to_extract):
             cprint("Analysis terminated","DEBUG")
             sqlmap_output = wrapper.sqlmap.get_data(task)
             stopFlag.set()
-            wrapper.sqlmap.kill()
         else:
             cprint("Analysis in progress ... ","DEBUG")
     
     # Let's parse the data extracted
-    cprint(sqlmap_output["data"][2]["value"]["username"]["values"],"DEBUG")
+    cprint(sqlmap_output,"DEBUG")
     extracted_values = {}
+    #TODO: check errors in the sqlmap_output
     for tblcol in data_to_extract:
         tbl_list = tblcol.split(".")
         cprint(tbl_list[1],"DEBUG")
@@ -114,9 +118,17 @@ def execute_sqlmap(url,method,params,data_to_extract):
             extracted_values[tmp_table]
         except KeyError:
             extracted_values[tmp_table] = {}
-        extracted_values[tmp_table][tmp_column] = sqlmap_output["data"][2]["value"][tmp_column]["values"]
+        try:
+            extracted_values[tmp_table][tmp_column] = sqlmap_output["data"][2]["value"][tmp_column]["values"]
+        except Exception:
+            cprint("error in the sqlmap output","DEBUG")
+            wrapper.sqlmap.kill
+            cprint(sqlmap_output,"DEBUG")
+            exit()
             
         cprint(extracted_values,"DEBUG")
+        wrapper.sqlmap.kill()
+        return extracted_values
 
 if __name__ == "__main__":
     execute_normal_request("c")
