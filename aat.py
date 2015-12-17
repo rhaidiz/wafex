@@ -43,19 +43,64 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
     
     # request session object for performing subsequent HTTP requests
     s = requests.Session()
+        
+    # current response
+    response = None
 
-    # loop the msc_table and find when to perform an attack
+    # loop the msc_table and find when to perform a sqli attack
     for idx, message in enumerate(msc_table):
+        if "webapplication" in msc_table[idx][1][0]:
+                # is a response, check if we got it right
+                cprint("Check if response is valid","DEBUG")
+                pages = msc_table[idx][1][2].split(".")
+                cprint(pages,"DEBUG")
+                with open("chained_concretization.txt","r") as data_file:
+                     data = json.load(data_file)
+                for p in pages:
+                        try:
+                                cprint(data[p],"DEBUG")
+                        except Exception:
+                                cprint("NO ","DEBUG")
+                                
+                     
+
         if not "webapplication" in msc_table[idx][1][0]:
              if "a" in extension_sqli[idx][0]:
                  cprint("sqli attack","DEBUG")
-                 url, method, params, data_to_extract = parser.request_details(idx,msc_table, file_aslanpp, extension_sqli)
-                 if not data_to_extract:
+                 cprint(message,"DEBUG")
+                 cprint(extension_sqli[idx],"DEBUG")
+                 tag = message[0]
+                 #parser.request_details(msc_table,message[0])
+
+                 sqli_init = {}
+                 with open("chained_concretization.txt","r") as data_file:
+                     data = json.load(data_file)
+                 sqli_init["url"] = data[tag]["url"]
+                 sqli_init["method"] = data[tag]["method"]
+                 # now create the params
+                 params = {}
+                 for k,v in data[tag]["params"].items():
+                     tmp = v.split("=")
+                     params[tmp[0]] = tmp[1]
+                 sqli_init["params"] = params
+                 # data to extract
+                 extract = []
+                 exploitations = extension_sqli[idx][1]
+                 for row in exploitations:
+                       tag = row[0]
+                       exploit_points = row[1]
+                       for k in exploit_points:
+                                tmp_map = data[tag]["params"][k].split("=")[0]
+                                tmp_table = data[tag]["tables"][tmp_map]
+                                extract.append(tmp_table)
+                 sqli_init["extract"] = extract
+                 if not extract:
                      cprint("No valid data to be extracred from the database","WARNING")
                  else:
                     # for the execution we need (url,method,params,data_to_extract)
                     # data_to_extract => table.column
-                    sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
+                    #sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
+                    sqlmap_output = execute_sqlmap(sqli_init)
                     cprint(sqlmap_output,"DEBUG")
                     if not sqlmap_output:
                         cprint("No data extracted from the database","WARNING")
@@ -64,37 +109,48 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                  # exploit the sqli here, which is also a normal request where we use
                  # the result from sqlmap
                  cprint("exploit sqli here, crafted request","DEBUG")
-                 url, method, params, abstract_param_to_real, mapping = parser.request_details(idx,msc_table, file_aslanpp)
-                 # for each p in params we need to instantiate it, either with the constant
-                 # present in the annotation or with something from sqlmap_output
-                 req_params = {}
-                 cprint("mapping","DEBUG")
-                 cprint(mapping,"DEBUG")
-                 cprint("Abstract param to real","DEBUG")
-                 cprint(abstract_param_to_real,"DEBUG")
-                 cprint("Params","DEBUG")
-                 cprint(params,"DEBUG")
-                 for p in params:
-                     p_key = p[0]
-                     p_value = p[1]
-                     if p_value == "?":
-                         cprint(p_key + " " + p_value,"DEBUG")
-                         for abstract_key,abstract_value in abstract_param_to_real.items():
-                             if abstract_value == p_key:
-                                 tblcol = mapping[abstract_key].split(".")
-                                 #tblcol = mapping_value.replace(" ","").split(".")
-                                 candidate_values = sqlmap_output[tblcol[0]][tblcol[1]]
-                                 cprint("Candidate value","DEBUG")
-                                 cprint(candidate_values,"DEBUG")
-                                 req_params[p_key] = candidate_values[0]
+                 
+                 tag = message[0]
+
+                 req = {}
+                 with open("chained_concretization.txt","r") as data_file:
+                     data = json.load(data_file)
+                 req["url"] = data[tag]["url"]
+                 req["method"] = data[tag]["method"]
+                 # now create the params
+                 params = {}
+                 for k,v in data[tag]["params"].items():
+                     tmp = v.split("=")
+                     if tmp[1] == "?":
+                        # we need to provide something from the output of sqlmap
+                        table = data[tag]["tables"][tmp[0]].split(".")
+                        #TODO here we are using one of the possibile output, we shoule 
+                        #loop and be sure to try all possibile combinations
+                        params[tmp[0]] = sqlmap_output[table[0]][table[1]][0]
                      else:
-                         # we leave the param with the default value
-                         req_params[p_key] = p_value
-                 cprint(req_params,"DEBUG")
-                 execute_request(url,method,req_params)
+                        params[tmp[0]] = tmp[1]
+                 req["params"] = params
+                 cprint(req,"DEBUG")
+                 response = execute_request(req)
+
              elif "n" in extension_sqli[idx][0]:
                  # normal http request
                  cprint(msc_table[idx][0],"DEBUG")
+
+                 tag = message[0]
+
+                 req = {}
+                 with open("chained_concretization.txt","r") as data_file:
+                     data = json.load(data_file)
+                 req["url"] = data[tag]["url"]
+                 req["method"] = data[tag]["method"]
+                 # now create the params
+                 params = {}
+                 for k,v in data[tag]["params"].items():
+                     tmp = v.split("=")
+                     params[tmp[0]] = tmp[1]
+                 req["params"] = params
+                 response = execute_request(req)
 
 # parameters for configuring the requests maker:
 # Requests group
@@ -104,8 +160,12 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
 # - proxy-cred
 # - sqlmap usage
 
-def execute_request(url, method, params):
+def execute_request(request):
     global s
+    url = request["url"]
+    method = request["method"]
+    params = request["params"]
+
     cprint("Execute request", "DEBUG")
     cprint(url,"DEBUG")
     cprint(method,"DEBUG")
@@ -119,10 +179,17 @@ def execute_request(url, method, params):
     else:
         r = s.post(url,proxies=proxy, data = params, verify=False, auth=('regis','password'))
     #r = requests.get(url, headers=headers, proxies=proxy, verify=False, auth=('regis','password'))
-    print(r.text)
+    cprint(r.text,"DEBUG")
+    return r
 
 
-def execute_sqlmap(url,method,params,data_to_extract):
+def execute_sqlmap(sqlmap_details):
+    print(sqlmap_details)
+    url = sqlmap_details["url"]
+    method = sqlmap_details["method"]
+    params = sqlmap_details["params"]
+    data_to_extract = sqlmap_details["extract"]
+
     cprint("Execute sqlmap","DEBUG")
     wrapper.sqlmap.run_api_server()
     task = wrapper.sqlmap.new_task()
@@ -130,8 +197,8 @@ def execute_sqlmap(url,method,params,data_to_extract):
     wrapper.sqlmap.set_option("authCred","regis:password",task)
 
     url_params = ""
-    for key,value in params:
-        url_params = url_params+"&"+key+"="+value
+    for k,v in params.items():
+        url_params = url_params+"&"+k+"="+v
     if method == "GET":
         wrapper.sqlmap.set_option("url",url+"/"+url_params,task)
     elif method == "POST":
