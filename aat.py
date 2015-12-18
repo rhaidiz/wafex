@@ -19,6 +19,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 import wrapper.sqlmap
 import json
 import threading
+import itertools
 
 # global request
 s = None
@@ -58,7 +59,17 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                      data = json.load(data_file)
                 for p in pages:
                         try:
-                                cprint(data[p],"DEBUG")
+                                # we now check if the obtained response is valid.
+                                # if is not valid, and the previous request was a 
+                                # normal request, we ask to modify the previous 
+                                # request.
+                                # if is not valid and the previous request was
+                                # an exploitation, try a different combination of
+                                # parameters.
+                                # if the request was valid, procede with next operation
+                                if response != None and data[p] in response.text:
+                                    cprint("valid request","DEBUG")
+                                    cprint(data[p],"DEBUG")
                         except Exception:
                                 cprint("NO ","DEBUG")
                                 
@@ -86,6 +97,8 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                  # data to extract
                  extract = []
                  exploitations = extension_sqli[idx][1]
+                 cprint("Exploitations","DEBUG")
+                 cprint(exploitations,"DEBUG")
                  for row in exploitations:
                        tag = row[0]
                        exploit_points = row[1]
@@ -119,19 +132,56 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                  req["method"] = data[tag]["method"]
                  # now create the params
                  params = {}
+                 tmp_dyn_params = []
                  for k,v in data[tag]["params"].items():
                      tmp = v.split("=")
+                     tmp_a = []
                      if tmp[1] == "?":
                         # we need to provide something from the output of sqlmap
                         table = data[tag]["tables"][tmp[0]].split(".")
                         #TODO here we are using one of the possibile output, we shoule 
                         #loop and be sure to try all possibile combinations
                         params[tmp[0]] = sqlmap_output[table[0]][table[1]][0]
+                        for v in sqlmap_output[table[0]][table[1]]:
+                            tmp_a.append(tmp[0]+"="+v)
+                        cprint(tmp_a,"DEBUG")
+                        tmp_dyn_params.append(tmp_a)
+                        cprint("CCCCCCCCCCCCCCCCCCCCCC","DEBUG")
+                        cprint(tmp_dyn_params,"DEBUG")
                      else:
-                        params[tmp[0]] = tmp[1]
+                         tmp_a.append(tmp[0] + "=" + tmp[1])
+                         tmp_dyn_params.append(tmp_a)
+                         params[tmp[0]] = tmp[1]
                  req["params"] = params
                  cprint(req,"DEBUG")
-                 response = execute_request(req)
+                 tmp_pp = None
+                 if len(tmp_dyn_params) > 1:
+                     # I used the %26 because it might happen that the password has a &
+                     tmp_pp = ["%26".join(str(y) for y in x) for x in itertools.product(*tmp_dyn_params)]
+                 cprint(tmp_pp,"DEBUG")
+                 # loop on all the possibile params combination and try to exploit the result
+                 found = False
+                 for param in tmp_pp:
+                    if not found:
+                        cprint("attempt to exploit sqli results","DEBUG")
+                        cprint(param,"DEBUG")
+                        # I used the %26 because it might happen that the password has a &
+                        req["params"] = dict( item.split("=") for item in param.split("%26") )
+                        cprint(req,"DEBUG")
+                        response = execute_request(req)
+                        pages = msc_table[idx+1][1][2].split(".")
+                        with open("chained_concretization.txt","r") as data_file:
+                             data = json.load(data_file)
+                        for p in pages:
+                                cprint(data[p],"DEBUG")
+                                try:
+                                        if response != None and data[p] in response.text:
+                                            cprint("valid request","DEBUG")
+                                            cprint(data[p],"DEBUG")
+                                            found = True
+                                            break;
+                                except Exception:
+                                        cprint("NO ","DEBUG")
 
              elif "n" in extension_sqli[idx][0]:
                  # normal http request
@@ -182,6 +232,9 @@ def execute_request(request):
     cprint(r.text,"DEBUG")
     return r
 
+"""
+output format: { table { columns : [values]}}
+"""
 
 def execute_sqlmap(sqlmap_details):
     print(sqlmap_details)
