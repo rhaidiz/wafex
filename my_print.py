@@ -8,24 +8,27 @@ import global_var
 
 def cprint(msg,t="INFO"):
     t_msg = ""
-    if t == "ERROR":
+    if t == "E":
          print("\033[1;31m[ERROR]\t",end="")
          print(msg,end="")
          print("\033[0m")
-    elif t == "INFO":
+    elif t == "I":
          print("[INFO]\t",end="")
-         print(msg,end="") 
-    elif t == "WARNING":
+         print(msg) 
+    elif t == "W":
          print("\033[1;33m[WARNING]\t",end="")
          print(msg,end="")
          print("\033[0m")
-    elif t == "DEBUG":
+    elif t == "D":
         t_msg = msg
-    if (t == "DEBUG") & global_var.DEBUG:
+    elif t == "V":
+        t_msg = msg;
+    if (t == "D") & global_var.DEBUG:
         print("\033[1;35m[DEBUG]\t"+"\033[0m",end="")
         print(t_msg)
-    elif t != "DEBUG":
+    elif(t == "V") & global_var.verbosity:
+        print("\033[1;32m[VERB]\t"+"\033[0m",end="")
         print(t_msg)
 
 if __name__ == "__main__":
-    cprint("ciao","ERROR")
+    cprint("ciao","E")
