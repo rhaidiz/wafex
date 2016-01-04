@@ -1,1 +1,16 @@
-WSFAST readme
+ __      __  _________________________    ____________________
+/  \    /  \/   _____/\_   _____/  _  \  /   _____/\__    ___/
+\   \/\/   /\_____  \  |    __)/  /_\  \ \_____  \   |    |   
+ \        / /        \ |     \/    |    \/        \  |    |   
+  \__/\  / /_______  / \___  /\____|__  /_______  /  |____|   
+       \/          \/      \/         \/        \/            
+
+Supported features:
+ - sqlmap integration
+ - data extraction
+ - trace execution with data extraction
+
+Not yet supported:
+ - filesystem attacks
+ - sql injection bypass
+
