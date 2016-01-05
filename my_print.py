@@ -18,6 +18,9 @@ def cprint(msg,t="I",color="d"):
     elif color == "g":
         #green
         print("\033[1;32m",end="")
+    elif color == "y":
+        #yellow
+        print("\033[1;33m",end="")
 
     if t == "E":
          print("\033[1;31m[ERROR]\t",end="")

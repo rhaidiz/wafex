@@ -50,19 +50,39 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
     # current response
     response = None
 
-    # loop the msc_table and find when to perform a sqli attack
+    # loop the msc_table
     for idx, message in enumerate(msc_table):
-        if not "webapplication" in msc_table[idx][1][0]:
+        # --==[ SQL Injection ]==--
+        # 1: whenever I find a sqli somewhere, look for i -> webapp : tuple(of_the_same_sqli)
+        #    if found, data extraction is performed and thus inside the sqli array I'll have
+        #    and entry [a,idx] where idx is the line where the injection should be performed
+        # 2: if I don't perform a data extraction, a 0 should appear
+        # 3: sqli.lfi identifies a sql-injection for reading
+        # 4: sqli.evil_file identifies a sql-injection for writing
+        # intruder step, the only we are interested into
+        if "<i" in msc_table[idx][1][0]:
              if "a" in extension_sqli[idx][0]:
-                 sqlmap_init = __sqlmap_init(message,extension_sqli,concretization_data,idx)
-                 # for the execution we need (url,method,params,data_to_extract)
-                 # data_to_extract => table.column
-                 # sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
-                 sqlmap_output = __execute_sqlmap(sqlmap_init)
-                 cprint(sqlmap_output,"D")
-                 if not sqlmap_output:
-                     cprint("No data extracted from the database","WARNING")
-                     exit()
+                 if "sqli.lfi" in msc_table[idx][1][2]:
+                     cprint("SQL injection for file reading not supported yet. Aborting!",color="y");
+                     exit(0)
+                 if "sqli.evil_file" in msc_table[idx][1][2]:
+                     cprint("SQL injection for file reading not supported yet. Aborting!",color="y");
+                     exit(0)
+                 if len(extension_sqli[idx][1]) >= 1:
+                    # data extraction, execute sqlmap
+                    sqlmap_init = __sqlmap_init(message,extension_sqli,concretization_data,idx)
+                    # for the execution we need (url,method,params,data_to_extract)
+                    # data_to_extract => table.column
+                    # sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
+                    sqlmap_output = __execute_sqlmap(sqlmap_init)
+                    cprint(sqlmap_output,"D")
+                    if not sqlmap_output:
+                        cprint("No data extracted from the database","W")
+                        exit()
+                 else:
+                    # authentication bypass
+                    cprint("Authentication bypass attack not supported yet. Aborting!",color="y")
+                    exit(0)
              elif "e" in extension_sqli[idx][0]:
                  # exploit the sqli here, which is also a normal request where we use
                  # the result from sqlmap

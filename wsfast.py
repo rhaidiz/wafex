@@ -6,7 +6,7 @@ WSFAST main file
 
 import argparse
 import os.path
-import aat
+import engine
 import mc
 import parser
 import global_var
@@ -77,7 +77,7 @@ def main():
          sqli_matrix = parser.sqli(msc_table)
 
          # execute the attack trace
-         aat.execute_attack(msc_table,sqli_matrix,load_model)
+         engine.execute_attack(msc_table,sqli_matrix,load_model)
 
 
     
