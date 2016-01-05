@@ -6,15 +6,27 @@ This module provides convinient output printing method
 
 import global_var
 
-def cprint(msg,t="INFO"):
+def cprint(msg,t="I",color="d"):
     t_msg = ""
+
+    if color == "d":
+        #white
+        print("",end="")
+    if color == "r":
+        #red
+        print("\033[1;31m",end="")
+    elif color == "g":
+        #green
+        print("\033[1;32m",end="")
+
     if t == "E":
          print("\033[1;31m[ERROR]\t",end="")
          print(msg,end="")
          print("\033[0m")
     elif t == "I":
          print("[INFO]\t",end="")
-         print(msg) 
+         print(msg,end="") 
+         print("\033[0m")
     elif t == "W":
          print("\033[1;33m[WARNING]\t",end="")
          print(msg,end="")

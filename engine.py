@@ -1,8 +1,7 @@
 #!/usr/local/bin/python3.5
 
 """
-This module provides functionalities for parsing a
-Message Sequence Chart attack trace in Alice and Bob motation.
+This module executes a trace
 """
 
 
@@ -26,7 +25,7 @@ s = None
 # takes an attack trace and an extension matrix, and execute the attack
 def execute_attack(msc_table,extension_sqli,file_aslanpp):
     global s
-    cprint("Executing the attack trace","I")
+    cprint("Executing the attack trace")
 
     # load the concretization file
     with open(global_var.concretization,"r") as data_file:
@@ -107,6 +106,7 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                         cprint(req,"D")
                         response = __execute_request(req)
                         # check if reponse is valid based on the MSC
+                        # pages contain the right side of a response
                         pages = msc_table[idx+1][1][2].split(".")
                         for p in pages:
                                 cprint(concretization_data[p],"D")
@@ -120,8 +120,10 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                                         cprint("NO ","D")
                  if not found:
                       # we coulan'td procede in the trace, abort
-                      cprint("Exploitation failed, abort trace execution","W")
+                      cprint("Exploitation failed, abort trace execution",color="r")
                       exit(0)
+                 else:
+                     cprint("Exploitation succceded",color="g")
 
              elif "n" in extension_sqli[idx][0]:
                  # normal http request
@@ -139,8 +141,19 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                      params[tmp[0]] = tmp[1]
                  req["params"] = params
                  response = __execute_request(req)
-                 #TODO add check if response is valid
-        cprint("Trace executed","I")
+                 # check if reponse is valid based on the MSC
+                 # pages contain the right side of a response
+                 pages = msc_table[idx+1][1][2].split(".")
+                 for p in pages:
+                         cprint(concretization_data[p],"D")
+                         if response == None or not( concretization_data[p] in response.text):
+                            cprint("Exploitation failed, abort trace execution",color="r")
+                            exit(0)
+                         else:
+                            cprint("Step succceded",color="g")
+    cprint("Trace ended",color="g")
+                             
+
 
 # parameters for configuring the requests maker:
 # Requests group
@@ -156,10 +169,10 @@ def __execute_request(request):
     method = request["method"]
     params = request["params"]
 
-    cprint("Execute request", "I")
-    cprint(url,"I")
-    cprint(method,"I")
-    cprint(params,"I")
+    cprint("Execute request")
+    cprint(url)
+    cprint(method)
+    cprint(params)
     c = __ask_yes_no("Executing request, continue?")
     if not c:
         exit(0);
@@ -215,7 +228,7 @@ def __execute_sqlmap(sqlmap_details):
     params = sqlmap_details["params"]
     data_to_extract = sqlmap_details["extract"]
 
-    cprint("Execute sqlmap","I")
+    cprint("Execute sqlmap")
     wrapper.sqlmap.run_api_server()
     task = wrapper.sqlmap.new_task()
     wrapper.sqlmap.set_option("authType","Basic",task)
@@ -234,6 +247,7 @@ def __execute_sqlmap(sqlmap_details):
         tbl_list = tblcol.split(".")
         cprint(tbl_list[0],"D")
         wrapper.sqlmap.set_option("tbl",tbl_list[0],task)
+        wrapper.sqlmap.set_option("col",tbl_list[1],task)
 
     #wrapper.sqlmap.set_option("data","username=?&password=?",task)
     #wrapper.sqlmap.set_option("tbl","users",task)
@@ -258,7 +272,6 @@ def __execute_sqlmap(sqlmap_details):
     # Let's parse the data extracted
     cprint(sqlmap_output,"D")
     extracted_values = {}
-    #TODO: check errors in the sqlmap_output
     for tblcol in data_to_extract:
         tbl_list = tblcol.split(".")
         cprint(tbl_list[1],"D")
