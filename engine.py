@@ -84,6 +84,7 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                     cprint("SQL injection for file reading not supported yet. Aborting!",color="y");
                     exit(0)
                 if len(extension_sqli[idx][1]) >= 1:
+                   cprint("Data extraction attack!",color="y") 
                    # data extraction, execute sqlmap
                    sqlmap_init = __sqlmap_init(message,extension_sqli,concretization_data,idx)
                    # for the execution we need (url,method,params,data_to_extract)
@@ -96,8 +97,27 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                        exit()
                 else:
                    # authentication bypass
-                   cprint("Authentication bypass attack not supported yet. Aborting!",color="y")
-                   exit(0)
+                   cprint("Authentication bypass attack!",color="y") 
+                   tag = message[0]
+                   req = {}
+                   req["url"] = concretization_data[tag]["url"]
+                   req["method"] = concretization_data[tag]["method"]
+                   # now create the params
+                   params = {}
+                   for k,v in concretization_data[tag]["params"].items():
+                       tmp = v.split("=")
+                       params[tmp[0]] = tmp[1]
+                   req["params"] = params
+                   
+                   pages = msc_table[idx+1][1][2].split(".")
+                   check = concretization_data[pages[0]] # baaad, we assume that position 0 is always the page we're looking for
+                   is_bypass = __execute_bypass(s,req,check)
+                   if is_bypass:
+                       cprint("bypass success",color="g")
+                   else:
+                       cprint("bypass error, abort execution",color="r")
+                       exit(0)
+
             elif "e" in extension_sqli[idx][0]:
                 # exploit the sqli here, which is also a normal request where we use
                 # the result from sqlmap
@@ -354,6 +374,19 @@ def __sqlmap_init(message,extension_sqli,concretization_data,idx):
     sqli_init["extract"] = extract
     return sqli_init
     
+
+def __execute_bypass(s,request,check):
+    # now let's change the params
+    params = request["params"]
+    for park, parv in params.items():
+        if parv == "?":
+            with open("bypasspayloads.txt") as f:
+                for line in f.readlines():
+                    params[park] = line.rstrip()
+                    r = __execute_request(request)
+                    if check in r.text:
+                        return True
+    return False
 
 if __name__ == "__main__":
     execute_normal_request("c")

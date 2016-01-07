@@ -7,7 +7,7 @@ WSFAST main file
 import argparse
 import os.path
 import engine
-import mc
+from mc import mc
 import parser
 import global_var
 from my_print import cprint
