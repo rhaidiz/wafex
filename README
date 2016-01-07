@@ -9,8 +9,8 @@ Supported features:
  - sqlmap integration
  - data extraction
  - trace execution with data extraction
+ - sql injection bypass
 
 Not yet supported:
  - filesystem attacks
- - sql injection bypass
 
