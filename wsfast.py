@@ -11,6 +11,7 @@ import mc
 import parser
 import global_var
 from my_print import cprint
+import atexit
 
 def main():
     # command line parsing
@@ -39,6 +40,9 @@ def main():
         print("Error: " + args.concret + " file not found")
         exit()
 
+    # register exiting cleanup function
+    atexit.register(exitcleanup)
+    
     # set global variables 
     global_var.verbosity = args.verbose
     global_var.DEBUG = args.debug
@@ -81,6 +85,8 @@ def main():
 
 
     
+def exitcleanup():
+    print("exiting")
 
 
 if __name__ == "__main__":

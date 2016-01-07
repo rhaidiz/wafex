@@ -17,6 +17,7 @@ import json
 #from threading import Thread # This is the right package name
 #from threading import Event # This is the right package name
 import threading
+import atexit
 
 SQLMAP_API = "./sqlmapapi.py -s"
 
@@ -28,6 +29,7 @@ sqlmap_process = None
 
 def run_api_server():
     global sqlmap_process
+    atexit.register(exitcleanup)
     # NOTE: when executing sqlmapapi.py the working directory must be ./sqlmap/ otherwise when the analysis
     # is started, it raises an not fil execptio 'cause it cannot find sqlmap.py
     sqlmap_process = subprocess.Popen(SQLMAP_API.split(" "),stderr=subprocess.PIPE, stdout=subprocess.PIPE,cwd="./sqlmap/")
@@ -169,6 +171,10 @@ class MyThread(threading.Thread):
                 print("Analysis in progress ... ")
             # call a function
 
+
+def exitcleanup():
+    print("exiting sqlmap")
+    kill()
 
 if __name__ == "__main__":
     #---------------------#
