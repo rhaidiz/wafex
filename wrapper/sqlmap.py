@@ -41,7 +41,7 @@ def run_api_server():
      /\__/ /\ \/' / |____ | | | | | | (_| | |_) |
      \____/  \_/\_\_____/ |_| |_| |_|\__,_| .__/ 
                                   | |      API    
-                                  |_|""","INFO")
+                                  |_|""",color="g")
     while True:
         line = sqlmap_process.stdout.readline()
         if "REST-JSON API server connected to IPC database" in line.decode('utf-8'):
@@ -57,7 +57,7 @@ def kill():
 def set_option(option,value,task_id):
     url = SQLMAP_BASE_URL+"/option/"+task_id+"/set"
     params = { option : value }
-    cprint("task " + task_id +" setting " + option + " to " + value ,"DEBUG")
+    cprint("task " + task_id +" setting " + option + " to " + value ,"D")
     r = requests.post(url,json=params)
     try:
         json_result = json.loads(r.text)
@@ -100,7 +100,7 @@ def start_scan(url_to_scan,task_id):
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
         cprint("Start scan JSON decoder error","ERROR")
-        cprint(str(e),"DEBUG")
+        cprint(str(e),"D")
         exit()
     if json_result['success'] == True:
         return json_result['engineid']
