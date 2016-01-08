@@ -12,5 +12,6 @@ Supported features:
  - sql injection bypass
 
 Not yet supported:
+ - header fields in the model
  - filesystem attacks
 
