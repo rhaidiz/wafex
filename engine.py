@@ -368,9 +368,12 @@ def __sqlmap_init(message,extension_sqli,concretization_data,idx):
           tag = row[0]
           exploit_points = row[1]
           for k in exploit_points:
-                   tmp_map = concretization_data[tag]["params"][k].split("=")[0]
-                   tmp_table = concretization_data[tag]["tables"][tmp_map]
-                   extract.append(tmp_table)
+              try:
+                  tmp_map = concretization_data[tag]["params"][k].split("=")[0]
+              except KeyError:
+                  tmp_map = concretization_data[tag]["headers"][k].split("=")[0]
+              tmp_table = concretization_data[tag]["tables"][tmp_map]
+              extract.append(tmp_table)
     sqli_init["extract"] = extract
     return sqli_init
     
