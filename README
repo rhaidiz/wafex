@@ -7,11 +7,12 @@
 
 Supported features:
  - sqlmap integration
- - data extraction
- - trace execution with data extraction
  - sql injection bypass
+ - header fields in the model
+ - full trace execution with data extraction amd (basic) authentication bypass
 
 Not yet supported:
- - header fields in the model
  - filesystem attacks
+ - graphical interface for model creation
+ - support multitrace 
 
