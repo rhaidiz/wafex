@@ -17,7 +17,7 @@ def main():
     # command line parsing
     cmd = argparse.ArgumentParser()
     cmd.add_argument("model",help="The model written in ASLAn++")
-    cmd.add_argument("concret",help="The concretization details written in JSON")
+    cmd.add_argument("--c",metavar="concre_file",help="The concretization file, needed for executing the whole trace")
     cmd.add_argument("--debug",help="Print debug messages",action="store_true")
     cmd.add_argument("--mc-only",help="Run the model-checker only",action="store_true")
     cmd.add_argument("--verbose", help="Increase the output verbosity",action="store_true")
@@ -31,14 +31,16 @@ def main():
     args = cmd.parse_args()
     load_model = args.model
 
-    # check if file exists
+    # check if model file exists
     if not os.path.isfile(load_model):
         print("Error: " + load_model + " file not found")
         exit()
-    # check if file exists
-    if not os.path.isfile(args.concret):
-        print("Error: " + args.concret + " file not found")
+    # check if concretization file exists only if --mc-only hasn't been specified
+    if not args.mc_only and not os.path.isfile(args.c):
+        print("Error: " + args.c + " file not found")
         exit()
+    elif args.mc_only and args.c != None and  os.path.isfile(args.c):
+        global_var.concretization = args.concret
 
     # register exiting cleanup function
     atexit.register(exitcleanup)
@@ -47,7 +49,6 @@ def main():
     global_var.verbosity = args.verbose
     global_var.DEBUG = args.debug
     global_var.proxy = args.proxy
-    global_var.concretization = args.concret
     if args.translator == "1.4.9":
         mc.connector = global_var.CONNECTOR_1_4_9
     if args.translator == "1.3":
