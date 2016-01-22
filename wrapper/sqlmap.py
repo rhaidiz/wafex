@@ -18,6 +18,8 @@ import json
 #from threading import Event # This is the right package name
 import threading
 import atexit
+import shutil
+import os.path
 
 SQLMAP_API = "./sqlmapapi.py -s"
 
@@ -50,7 +52,13 @@ def run_api_server():
         if not line: break
 
 def kill():
-    sqlmap_process.kill()
+    sqlmap_process.kill()    
+    # remove temp sqlmap folder
+    #shutil.rmtree(os.path.expanduser('~/.sqlmap'))
+    #try:
+    #except Exception:
+    #    cprint("sqlmap reset error","E")
+    #    pass
 
 
 # set a value for an option to a task_id
@@ -173,7 +181,9 @@ class MyThread(threading.Thread):
 
 
 def exitcleanup():
-    print("exiting sqlmap")
+    cprint("Exiting sqlmap","V")
+
+
     kill()
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ import parser
 import global_var
 from my_print import cprint
 import atexit
+import shutil
 
 def main():
     # command line parsing
@@ -33,7 +34,7 @@ def main():
 
     # check if model file exists
     if not os.path.isfile(load_model):
-        print("Error: " + load_model + " file not found")
+        cprint("Error: " + load_model + " file not found")
         exit()
     # check if concretization file exists only if --mc-only hasn't been specified
     if args.c == None and not args.mc_only:
@@ -42,8 +43,8 @@ def main():
     elif not args.mc_only and not os.path.isfile(args.c):
         cprint("Error: " + args.c + " file not found","W")
         exit()
-    elif args.mc_only and args.c != None and  os.path.isfile(args.c):
-        global_var.concretization = args.concret
+    elif not args.mc_only and args.c != None and  os.path.isfile(args.c):
+        global_var.concretization = args.c
 
     # register exiting cleanup function
     atexit.register(exitcleanup)
