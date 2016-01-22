@@ -30,6 +30,11 @@ def generate_msc(file_attack_trace,file_aslan_model):
         p1.kill()
         cprint("MSC creation timed out","E")
         exit()
+    if global_var.verbosity:
+        # print the generated output on a file
+        msc_verbose = open("tmp_msc.txt","w")
+        msc_verbose.write(out)
+        msc_verbose.close()
     f = open(file_attack_trace)
     for line in f.readlines():
         if "SUMMARY ATTACK_FOUND" in line:
@@ -37,17 +42,11 @@ def generate_msc(file_attack_trace,file_aslan_model):
             i = out.find("MESSAGES:")
             msc = out[i+9:]
             cprint("Abstract Attack Trace found:","I")
-            if global_var.verbosity:
-                print(out)
-            else:
-                print(msc)
+            print(msc)
             return msc
         elif "SUMMARY NO_ATTACK_FOUND" in line:
             # no attack found, we don't need the MSC
-            if global_var.verbosity:
-                print(out)
-            else:    
-               cprint("NO ATTACK FOUND","I") 
+            cprint("NO ATTACK FOUND","I") 
             return ""
 
 """
@@ -87,10 +86,20 @@ def aslanpp2aslan(file_aslanpp):
         out,err = p1.communicate(timeout=5)
     except subprocess.TimeoutExpired:
         p1.kill()
-        cprint("Error: " + connector + " timed out.","I")
+        cprint("Error: " + connector + " timed out.","E")
         exit()
 
 
+    # check if an error has been generated from the translator
+    if "FATAL" in err or "ERROR" in err:
+        # there was an error in executing the translator
+        cprint("Translator generated an error","E")
+        cprint(err,"E")
+        exit()
+
+    if global_var.verbosity and "WARNING" in err:
+        cprint(err.strip(),"V")
+    cprint("ASlan model generated","I")    
     return translator_output_file, err
 
 

@@ -36,8 +36,11 @@ def main():
         print("Error: " + load_model + " file not found")
         exit()
     # check if concretization file exists only if --mc-only hasn't been specified
-    if not args.mc_only and not os.path.isfile(args.c):
-        print("Error: " + args.c + " file not found")
+    if args.c == None and not args.mc_only:
+        cprint("Concretization file not specified","W")
+        exit()
+    elif not args.mc_only and not os.path.isfile(args.c):
+        cprint("Error: " + args.c + " file not found","W")
         exit()
     elif args.mc_only and args.c != None and  os.path.isfile(args.c):
         global_var.concretization = args.concret
@@ -58,15 +61,7 @@ def main():
     # first thing is to confert the ASLan++ model in ASLan
     file_aslan_model, err = mc.aslanpp2aslan(load_model)
 
-    # check if an error has been generated from the translator
-    if "FATAL" in err or "ERROR" in err:
-        # there was an error in executing the translator
-        cprint("Translator generated an error","E")
-        print(err)
-        exit()
 
-    if global_var.verbosity and "WARNING" in err:
-        print(err)
 
 
     # we can now run the model checker, by default we use Cl-Atse locally 
@@ -87,7 +82,7 @@ def main():
 
     
 def exitcleanup():
-    print("exiting")
+    cprint("Exiting...!")
 
 
 if __name__ == "__main__":
