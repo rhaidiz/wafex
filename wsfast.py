@@ -6,11 +6,11 @@ WSFAST main file
 
 import argparse
 import os.path
-import engine
-from mc import mc
-import parser
-import global_var
-from my_print import cprint
+import modules.engine as engine
+import modules.mc.mc as mc
+import modules.parser as parser
+import config 
+from modules.logger import cprint
 import atexit
 import shutil
 
@@ -44,19 +44,19 @@ def main():
         cprint("Error: " + args.c + " file not found","W")
         exit()
     elif not args.mc_only and args.c != None and  os.path.isfile(args.c):
-        global_var.concretization = args.c
+        config.concretization = args.c
 
     # register exiting cleanup function
     atexit.register(exitcleanup)
     
     # set global variables 
-    global_var.verbosity = args.verbose
-    global_var.DEBUG = args.debug
-    global_var.proxy = args.proxy
+    config.verbosity = args.verbose
+    config.DEBUG = args.debug
+    config.proxy = args.proxy
     if args.translator == "1.4.9":
-        mc.connector = global_var.CONNECTOR_1_4_9
+        mc.connector = config.CONNECTOR_1_4_9
     if args.translator == "1.3":
-        mc.connector = global_var.CONNECTOR_1_3
+        mc.connector = config.CONNECTOR_1_3
     
 
     # first thing is to confert the ASLan++ model in ASLan

@@ -8,14 +8,14 @@ the AVANTSSAR platform.
 import os.path
 import subprocess
 import re
-import global_var
-from my_print import cprint
+import config
+from modules.logger import cprint
 
 # external software
-CLATSE = "mc/cl-atse_x86_64-mac"
+CLATSE = "modules/mc/cl-atse_x86_64-mac"
 
 # default value for the connector
-connector = global_var.CONNECTOR_1_4_1
+connector = config.CONNECTOR_1_4_1
 
 """
 Generates the message sequence chart 
@@ -30,7 +30,7 @@ def generate_msc(file_attack_trace,file_aslan_model):
         p1.kill()
         cprint("MSC creation timed out","E")
         exit()
-    if global_var.verbosity:
+    if config.verbosity:
         # print the generated output on a file
         msc_verbose = open("tmp_msc.txt","w")
         msc_verbose.write(out)
@@ -72,7 +72,7 @@ def local_cl_atse(file_aslan):
 Generate an ASLan file from an ASLan++ file.
 """
 def aslanpp2aslan(file_aslanpp):
-    #connector = global_var.connector
+    #connector = config.connector
     # get the filename without extension
     basename = os.path.splitext(os.path.basename(file_aslanpp))[0]
     translator_output_file = "tmp_"+basename+".aslan"
@@ -97,7 +97,7 @@ def aslanpp2aslan(file_aslanpp):
         cprint(err,"E")
         exit()
 
-    if global_var.verbosity and "WARNING" in err:
+    if config.verbosity and "WARNING" in err:
         cprint(err.strip(),"V")
     cprint("ASlan model generated","I")    
     return translator_output_file, err

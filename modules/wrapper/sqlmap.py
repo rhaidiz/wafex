@@ -6,7 +6,7 @@ convenient methods for executing sqlmap and returning
 its output.
 """
 #import global_var
-from  my_print import cprint
+from  modules.logger import cprint
 import subprocess
 import pexpect
 from sys import platform as _platform

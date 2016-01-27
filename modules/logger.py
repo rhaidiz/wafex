@@ -4,7 +4,7 @@
 This module provides convinient output printing method
 """
 
-import global_var
+import config
 
 def cprint(msg,t="I",color="d"):
     t_msg = ""
@@ -38,10 +38,10 @@ def cprint(msg,t="I",color="d"):
         t_msg = msg
     elif t == "V":
         t_msg = msg;
-    if (t == "D") & global_var.DEBUG:
+    if (t == "D") & config.DEBUG:
         print("\033[1;35m[DEBUG]\t"+"\033[0m",end="")
         print(t_msg)
-    elif(t == "V") & global_var.verbosity:
+    elif(t == "V") & config.verbosity:
         print("\033[1;32m[VERB]\t"+"\033[0m",end="")
         print(t_msg)
 
