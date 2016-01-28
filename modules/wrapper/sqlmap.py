@@ -35,15 +35,15 @@ def run_api_server():
     # NOTE: when executing sqlmapapi.py the working directory must be ./sqlmap/ otherwise when the analysis
     # is started, it raises an not fil execptio 'cause it cannot find sqlmap.py
     sqlmap_process = subprocess.Popen(SQLMAP_API.split(" "),stderr=subprocess.PIPE, stdout=subprocess.PIPE,cwd="./sqlmap/")
-    cprint("""
-     _____  _____ _                             
-    /  ___||  _  | |                            
-    \ `--. | | | | |      _ __ ___   __ _ _ __  
-     `--. \| | | | |     | '_ ` _ \ / _` | '_ \ 
-     /\__/ /\ \/' / |____ | | | | | | (_| | |_) |
-     \____/  \_/\_\_____/ |_| |_| |_|\__,_| .__/ 
-                                  | |      API    
-                                  |_|""",color="g")
+    #cprint("""
+    # _____  _____ _                             
+    #/  ___||  _  | |                            
+    #\ `--. | | | | |      _ __ ___   __ _ _ __  
+    # `--. \| | | | |     | '_ ` _ \ / _` | '_ \ 
+    # /\__/ /\ \/' / |____ | | | | | | (_| | |_) |
+    # \____/  \_/\_\_____/ |_| |_| |_|\__,_| .__/ 
+    #                              | |      API    
+    #                              |_|""",color="g")
     while True:
         line = sqlmap_process.stdout.readline()
         if "REST-JSON API server connected to IPC database" in line.decode('utf-8'):

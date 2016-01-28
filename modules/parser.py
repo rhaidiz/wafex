@@ -95,8 +95,17 @@ def sqli(msc_table):
                     cprint("there is a sqli","D")
                     cprint(message,"D")
                     cprint("---------------","D")
+                # now we should check what kind of sqli isa
+                # is sqli is followed by evil_file, is a writing
+                if( "sqli.evil_file" in message[len(message)-1] ):
+                    sqli.append(["w",0])
+                # if is not a writing we check if sqli is followed by anything that starts with a lower-case letter
+                elif( re.search('sqli\.[a-z]',message[len(message)-1]) != None ):
+                    sqli.append(["r",0])
+                # otherwise is "standard" sqli
+                else:
+                    sqli.append(["a",[]])
                 injection_point = idx
-                sqli.append(["a",[]])
             # we are exploiting a sqli, find the column that should be retrieved
             # .([a-z]*?).tuple
             elif "webapplication" in message[1] and "tuple" in message[len(message)-1] and "sqli" in message[len(message)-1]:
