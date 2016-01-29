@@ -20,7 +20,7 @@ import threading
 import itertools
 import atexit
 from os import listdir
-from os.path import isfile, join, expanduser
+from os.path import isfile, join, expanduser, dirname, realpath
 
 # global request
 s = None
@@ -91,10 +91,11 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                 # list extracted file content
                 __list_extracted_files()
 
-                continue
                 # perform a file reading attack
             if "w" in extension_sqli[idx][0]:
                 # perform a file writing attack
+                sqlmap_init = __sqlmap_init(message,extension_sqli,concretization_data,idx)
+                __execute_sqlmap(sqlmap_init)
                 continue
 
 
@@ -417,6 +418,19 @@ def __execute_sqlmap(sqlmap_details):
         sqlmap.set_option("rFile",file_to_extract,task)
     except KeyError:
         pass
+    try:
+
+        file_to_write = sqlmap_details["write"]
+        if not isfile(file_to_write):
+            cprint("Error: evil file not found","E")
+            exit()
+        cprint(dirname(realpath(__file__)))
+        sqlmap.set_option("wFile",join(".",file_to_write),task)
+        cprint("In which remote path you want to try to upload the file?")
+        path = input()
+        sqlmap.set_option("dFile",path,task)
+    except KeyError:
+        pass
 
     cprint("sqlmap analysis started")
     sqlmap.start_scan(url,task)
@@ -512,9 +526,9 @@ def __sqlmap_init(message,extension_sqli,concretization_data,idx):
     if "r" in extension_sqli[idx][0]:
         file_read = []
         # get the name of the file to retrieve
-        tag_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',request_message).group(1)
+        abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',request_message).group(1)
         cprint(tag_file_to_retrieve,"D")
-        real_file_to_retrieve = concretization_data["files"][tag_file_to_retrieve]
+        real_file_to_retrieve = concretization_data["files"][abstract_file_to_retrieve]
         cprint("file to read: " + real_file_to_retrieve,"D")
         sqli_init["read"] = real_file_to_retrieve
 
@@ -537,6 +551,19 @@ def __sqlmap_init(message,extension_sqli,concretization_data,idx):
                   tmp_table = concretization_data[tag]["tables"][tmp_map]
                   extract.append(tmp_table)
         sqli_init["extract"] = extract
+
+    # this code executes only if we extract data from database
+    if "w" in extension_sqli[idx][0]:
+        # in this case we upload a custom script which depends on
+        # the execution itself
+        abstract_evil_file = re.search(r'sqli\.([a-zA-Z_]*)',request_message).group(1)
+        real_evil_file = concretization_data["files"][abstract_evil_file]
+        cprint("file to write: " + real_evil_file,"D")
+        
+        sqli_init["write"] = real_evil_file
+
+        
+
     return sqli_init
     
 
