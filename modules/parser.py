@@ -79,10 +79,7 @@ def msc(aat):
 Understands the sql-injection points
 """
 def sqli(msc_table):
-    if config.DEBUG:
-        cprint("Starting extend_trace_sqli","D")
-    # there should be only one sqli injection point in our traces
-    # but we create an array for further extension
+    cprint("Starting extend_trace_sqli","D")
     sqli = []
     injection_point = ""
     for idx, message in enumerate(msc_table):
@@ -126,6 +123,36 @@ def sqli(msc_table):
                 sqli.append(["n",0])
     cprint(sqli,"D")
     return sqli
+
+
+
+def filesystem(msc_table):
+    cprint("Starting extend_trace_filesystem","D")
+    entities = {"webapplication","filesystem","database","<webapplication>","<filesystem>","<database>"}
+    fs = []
+    for idx, row in enumerate(msc_table):
+        tag = row[0]
+        message = row[1]
+        cprint(message,"D")
+        if message and len(message) == 3:
+            sender = message[0]
+            receiver = message[1]
+            msg = message[2]
+            # message is valid
+            if(message[0] not in entities):
+                # message is a request:
+                # - evil_file is a fileupload (without sqli)
+                # - path_injection is a fileinclude
+                if "evil_file" in msg and "sqli" not in msg:
+                    # file upload, get the parameters
+                    cprint(msg,"D")
+                    p = re.search("([a-zA-Z]*)\.evil_file",msg)
+                    if p != None:
+                        cprint(p,"D")
+                        fs.append(["u",p.group(1)])
+    cprint("filesystem matrix","D")
+    cprint(fs,"D")
+
 
 
 """

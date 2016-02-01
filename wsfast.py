@@ -76,6 +76,7 @@ def main():
          # read the output and parse it
          msc_table = parser.msc(msc_output)
          sqli_matrix = parser.sqli(msc_table)
+         fs_matrix = parser.filesystem(msc_table)
 
          # execute the attack trace
          engine.execute_attack(msc_table,sqli_matrix,load_model)
