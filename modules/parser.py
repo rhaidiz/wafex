@@ -29,6 +29,7 @@ def msc(aat):
     tag = "tag"
     for line in lines:
         if line:
+            cprint(line,"D")
             tmp_request = request_regexp.match(line)
             tmp_response = None
             #if not tmp_request: # not a request
@@ -78,7 +79,7 @@ def msc(aat):
 """
 Understands the sql-injection points
 """
-def sqli(msc_table):
+def sqli(msc_table,extended):
     cprint("Starting extend_trace_sqli","D")
     sqli = []
     injection_point = ""
@@ -88,19 +89,24 @@ def sqli(msc_table):
         if message and len(message) == 3:
             # read message and check if it's a request and require an SQLi
             if (not message[0] == "webapplication") and "sqli" in message[len(message)-1] and not "tuple" in message[len(message)-1]:
-                if config.DEBUG:
-                    cprint("there is a sqli","D")
-                    cprint(message,"D")
-                    cprint("---------------","D")
+                cprint("there is a sqli","D")
+                cprint(message,"D")
+                cprint("---------------","D")
                 # now we should check what kind of sqli isa
                 # is sqli is followed by evil_file, is a writing
                 if( "sqli.evil_file" in message[len(message)-1] ):
+                    entry = {"attack":2}
+                    extended[tag] = entry
                     sqli.append(["w",0])
                 # if is not a writing we check if sqli is followed by anything that starts with a lower-case letter
                 elif( re.search('sqli\.[a-z]',message[len(message)-1]) != None ):
+                    entry = {"attack":1}
+                    extended[tag] = entry
                     sqli.append(["r",0])
                 # otherwise is "standard" sqli
                 else:
+                    entry = {"attack":0}
+                    extended[tag] = entry
                     sqli.append(["a",[]])
                 injection_point = idx
             # we are exploiting a sqli, find the column that should be retrieved
@@ -117,6 +123,8 @@ def sqli(msc_table):
                 cprint(tag,"D")
                 cprint("--------------------","D")
                 # create a multiple array with params from different lines
+                t = msc_table[injection_point][0]
+                extended[t]["params"] = params
                 sqli[injection_point][1].append((tag,params))
                 sqli.append(["e",injection_point])
             else:
@@ -126,7 +134,7 @@ def sqli(msc_table):
 
 
 
-def filesystem(msc_table):
+def filesystem(msc_table,extended):
     cprint("Starting extend_trace_filesystem","D")
     entities = {"webapplication","filesystem","database","<webapplication>","<filesystem>","<database>"}
     fs = []
@@ -148,10 +156,13 @@ def filesystem(msc_table):
                     cprint(msg,"D")
                     p = re.search("([a-zA-Z]*)\.evil_file",msg)
                     if p != None:
+                        entry = {"attack":5,"params":{p.group(1):"evil_file"}}
+                        extended[tag] = entry
                         fs.append(["u",p.group(1)])
                 elif "path_injection" in msg:
                     p = re.search("([a-zA-Z]*)\.path_injection",msg)
                     if p != None:
+                        entry = {"attack":4,"params":{p.group(1):"?"}}
                         fs.append(["r",p.group(1)])
                 elif "f_file(" in msg:
                     # there's a request that sends something function of file
@@ -161,7 +172,8 @@ def filesystem(msc_table):
                         # when we find that f_file(?) is used, we should loop from the
                         # beginning until now and check where we should retrieve this
                         # file (which is completely different from SQLi)
-                        message2 = row[1]
+                        tag2 = row2[0]
+                        message2 = row2[1]
                         if message2 and len(message2) == 3 and idx2 < idx:
                             sender = message2[0]
                             receiver = message2[1]
@@ -169,9 +181,13 @@ def filesystem(msc_table):
                             # message is valid
                             if(message2[0] not in entities):
                                 for v in p:
+                                    k_v = re.search("([a-zA-Z]*)\.htpwd",msg)
+                                    entry = {"attack":4,"params":{k_v.group(1),v}}
+                                    extended[tag2] = entry
                                     fs[idx2] = ["r",v]
 
                 else:
+                        entry = {"attack":-1}
                         cprint("normal request","D")
                         fs.append(["n",0])
                     # this is a read attack

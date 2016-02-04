@@ -75,11 +75,12 @@ def main():
     if not args.mc_only:
          # read the output and parse it
          msc_table = parser.msc(msc_output)
-         sqli_matrix = parser.sqli(msc_table)
-         fs_matrix = parser.filesystem(msc_table)
+         concretization_json = {}
+         sqli_matrix = parser.sqli(msc_table,concretization_json)
+         fs_matrix = parser.filesystem(msc_table,concretization_json)
 
          # execute the attack trace
-         engine.execute_attack(msc_table,sqli_matrix,load_model)
+         engine.execute_attack(msc_table,concretization_matrix,load_model)
 
 
     

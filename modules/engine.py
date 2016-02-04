@@ -230,33 +230,6 @@ def execute_attack(msc_table,extension_sqli,file_aslanpp):
                                 response = __execute_request(req)
                                 found = __check_response(idx,msc_table,concretization_data,response)
                 
-
-                #found = False
-                #for param in params_perm:
-                #    for cookie in headers_perm:
-                #        if not found:
-                #            cprint("attempt to exploit sqli results","D")
-                #            cprint(param,"D")
-                #            # I used the %26 (encode of &) because it might happen that the password has a &
-                #            # and when I split, I split wrong
-                #            
-                #            req["params"] = dict( item.split("=") for item in param.split("%26") )
-                #            req["headers"] = dict( item.split("=") for item in cookie.split("%26") )
-                #            cprint(req,"D")
-                #            response = __execute_request(req)
-                #            # check if reponse is valid based on the MSC
-                #            # pages contain the right side of a response
-                #            pages = msc_table[idx+1][1][2].split(".")
-                #            for p in pages:
-                #                   cprint(concretization_data[p],"D")
-                #                   try:
-                #                           if response != None and concretization_data[p] in response.text:
-                #                               cprint("valid request","D")
-                #                               cprint(concretization_data[p],"D")
-                #                               found = True
-                #                               break;
-                #                   except Exception:
-                #                           cprint("NO ","D")
                 if not found:
                     # we coulan'td procede in the trace, abort
                     cprint("Exploitation failed, abort trace execution",color="r")
