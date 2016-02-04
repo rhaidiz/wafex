@@ -78,9 +78,10 @@ def main():
          concretization_json = {}
          sqli_matrix = parser.sqli(msc_table,concretization_json)
          fs_matrix = parser.filesystem(msc_table,concretization_json)
+         print(concretization_json)
 
          # execute the attack trace
-         engine.execute_attack(msc_table,concretization_matrix,load_model)
+         engine.execute_attack(msc_table,concretization_json,load_model)
 
 
     

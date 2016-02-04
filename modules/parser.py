@@ -84,6 +84,7 @@ def sqli(msc_table,extended):
     sqli = []
     injection_point = ""
     for idx, message in enumerate(msc_table):
+        cprint(message,"D")
         tag = message[0]
         message = message[1]
         if message and len(message) == 3:
@@ -124,11 +125,14 @@ def sqli(msc_table,extended):
                 cprint("--------------------","D")
                 # create a multiple array with params from different lines
                 t = msc_table[injection_point][0]
-                extended[t]["params"] = params
+                extended[t]["params"] = {tag:params}
+                extended[tag] = {"attack": 6}
                 sqli[injection_point][1].append((tag,params))
                 sqli.append(["e",injection_point])
             else:
-                sqli.append(["n",0])
+                if tag not in extended:
+                    extended[tag] = {"attack":-1}
+                    sqli.append(["n",0])
     cprint(sqli,"D")
     return sqli
 
@@ -187,9 +191,10 @@ def filesystem(msc_table,extended):
                                     fs[idx2] = ["r",v]
 
                 else:
-                        entry = {"attack":-1}
-                        cprint("normal request","D")
-                        fs.append(["n",0])
+                        if tag not in extended:
+                            extended[tag] = {"attack":-1}
+                            cprint("normal request","D")
+                            fs.append(["n",0])
                     # this is a read attack
     cprint("filesystem matrix","D")
     cprint(fs,"D")
