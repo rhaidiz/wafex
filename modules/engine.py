@@ -379,15 +379,16 @@ def __execute_sqlmap(sqlmap_details):
     try:
         data_to_extract = sqlmap_details["extract"]
         cprint(data_to_extract,"D")
-        sqlmap.set_option("dumpTable","true",task)
+        sqlmap.set_option("dumpAll","true",task)
         # set data extraction only if we have data to extract only if we have data to extract
         col = ""
         for tblcol in data_to_extract:
             tbl_list = tblcol.split(".")
             cprint(tbl_list[0],"D")
             col = col + tbl_list[1]
-        sqlmap.set_option("tbl","users",task)
-        sqlmap.set_option("col",col,task)
+        #sqlmap.set_option("tbl","users",task)
+        sqlmap.set_option("col","password",task)
+        #sqlmap.set_option("col",col,task)
     except KeyError:
         pass
     try:
