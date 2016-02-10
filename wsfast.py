@@ -9,6 +9,8 @@ import os.path
 import modules.engine as engine
 import modules.mc.mc as mc
 import modules.parser as parser
+import modules.sqli.sqli as sqli
+import modules.filesystem.fs as fs
 import config 
 from modules.logger import cprint
 import atexit
@@ -76,8 +78,8 @@ def main():
          # read the output and parse it
          msc_table = parser.msc(msc_output)
          concretization_json = {}
-         sqli_matrix = parser.sqli(msc_table,concretization_json)
-         fs_matrix = parser.filesystem(msc_table,concretization_json)
+         sqli_matrix = sqli.sqli(msc_table,concretization_json)
+         fs_matrix = fs.filesystem(msc_table,concretization_json)
          print(concretization_json)
 
          # execute the attack trace
