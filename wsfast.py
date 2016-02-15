@@ -4,17 +4,19 @@
 WSFAST main file
 """
 
-import argparse
-import os.path
-import modules.engine as engine
-import modules.mc.mc as mc
-import modules.parser as parser
-import modules.sqli.sqli as sqli
-import modules.filesystem.fs as fs
-import config 
-from modules.logger import cprint
 import atexit
 import shutil
+import argparse
+import os.path
+import config 
+import glob
+
+from modules.filesystem.fs import filesystem
+from modules.sqli.sqli import sqli
+from modules.engine import execute_attack
+from modules.parser import msc
+from modules.logger import cprint
+from modules.mc import mc
 
 def main():
     # command line parsing
@@ -30,6 +32,7 @@ def main():
     
     requests = cmd.add_argument_group("Requests")
     requests.add_argument("--proxy",help="Use an HTTP proxy when executing requests")
+    requests.add_argument("--keep-set-cookie",help="Keep Set-Cookie header from response",action="store_true")
     
     args = cmd.parse_args()
     load_model = args.model
@@ -55,6 +58,7 @@ def main():
     config.verbosity = args.verbose
     config.DEBUG = args.debug
     config.proxy = args.proxy
+    config.keep_cookie = args.keep_set_cookie
     if args.translator == "1.4.9":
         mc.connector = config.CONNECTOR_1_4_9
     if args.translator == "1.3":
@@ -76,19 +80,23 @@ def main():
 
     if not args.mc_only:
          # read the output and parse it
-         msc_table = parser.msc(msc_output)
+         msc_table = msc(msc_output)
          concretization_json = {}
-         sqli_matrix = sqli.sqli(msc_table,concretization_json)
-         fs_matrix = fs.filesystem(msc_table,concretization_json)
+         sqli_matrix = sqli(msc_table,concretization_json)
+         fs_matrix = filesystem(msc_table,concretization_json)
          print(concretization_json)
 
          # execute the attack trace
-         engine.execute_attack(msc_table,concretization_json,load_model)
+         execute_attack(msc_table,concretization_json,load_model)
 
 
     
 def exitcleanup():
-    cprint("Exiting...!")
+    # remove temporary files
+    cprint("Exiting wsfast..., removing temporary files!")
+    for fl in glob.glob("./tmp_*"):
+        os.remove(fl)
+    cprint("Done!")
 
 
 if __name__ == "__main__":

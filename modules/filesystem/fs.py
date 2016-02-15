@@ -78,3 +78,23 @@ def filesystem(msc_table,extended):
                     # this is a read attack
     cprint("filesystem matrix","D")
     cprint(fs,"D")
+
+
+
+"""
+retrieve the list of files extracted by sqlmap
+"""
+def __list_extracted_files():
+    cprint("domain: " + attack_domain,"D")
+    __sqlmap_files_path = expanduser(join("~",".sqlmap","output",attack_domain,"files"))
+
+    try:
+        files = [f for f in listdir(__sqlmap_files_path) if isfile(join(__sqlmap_files_path,f))]
+    except FileNotFoundError:
+        cprint("File not found! " + __sqlmap_files_path,"E")
+        cprint("Aborting execution","E")
+        exit(0)
+    for f in files:
+        cprint("content of file: " +join( __sqlmap_files_path, f))
+        txt = open(join(__sqlmap_files_path,f))
+        print(txt.read())
