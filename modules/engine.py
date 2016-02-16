@@ -15,8 +15,8 @@ import json
 import threading
 import itertools
 import atexit
-import modules.filesystem.fs 
-import modules.sqli.sqli
+#import modules.filesystem.fs 
+#import modules.sqli.sqli
 
 from modules.logger import cprint
 # disable warnings when making unverified HTTPS requests
@@ -29,6 +29,7 @@ from modules.sqli.sqli import sqli_init
 from modules.sqli.sqli import execute_sqlmap
 from modules.sqli.sqli import execute_bypass
 from modules.http import execute_request
+from modules.filesystem.traversalengine import execute_traversal
 
 
 # global request
@@ -119,9 +120,35 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             if not c:
                 exit(0)
 
+            # file reading 
+            if attack == 4:
+                cprint("File reading attack", color="y")
+                cprint("execute attack on param","D")
+                cprint(params,"D")
+                req = {}
+                req["url"] = concretization_data[tag]["url"]
+                req["method"] = concretization_data[tag]["method"]
+                # now create the params
+                params = {}
+                for k,v in concretization_data[tag]["params"].items():
+                    tmp = v.split("=")
+                    params[tmp[0]] = tmp[1]
+                req["params"] = params
+                
+                pages = msc_table[idx+1][1][2].split(".")
+                #check = concretization_data[pages[0]] # baaad, we assume that position 0 is always the page we're looking for
+                is_traversed = execute_traversal(s,req,"dir traversal","flag.txt")
+                if is_traversed:
+                    cprint("yep, trovato")
+                else:
+                    cprint("nope, aborting")
+                    exit(0)
+                continue
+
+
             # SQL-injection filesystem READ
             if attack == 1:
-                cprint(" SQLI Filesystem read attack!",color="y")
+                cprint("SQLI Filesystem read attack!",color="y")
                 # get the name of the file to retrieve
                 abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',message).group(1)
                 real_file_to_retrieve = concretization_data["files"][abstract_file_to_retrieve]
@@ -182,7 +209,6 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 # authentication bypass
                 else:
                    cprint("Authentication bypass attack!",color="y") 
-                   tag = row[0]
                    req = {}
                    req["url"] = concretization_data[tag]["url"]
                    req["method"] = concretization_data[tag]["method"]
@@ -197,7 +223,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                    check = concretization_data[pages[0]] # baaad, we assume that position 0 is always the page we're looking for
                    is_bypassed = execute_bypass(s,req,check)
                    if is_bypassed:
-                       cprint("bypass success",color="g")
+                       cprint("bypass successed",color="g")
                    else:
                        cprint("bypass error, abort execution",color="r")
                        exit(0)
@@ -312,12 +338,15 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 params = {}
                 for k,v in concretization_data[tag]["params"].items():
                     tmp = v.split("=")
+                    # check if the value of parameters is ?
                     params[tmp[0]] = tmp[1]
                 req["params"] = params
                 response = execute_request(s,req)
-                # check if reponse is valid based on the MSC
-                # pages contain the right side of a response
+                # check if reponse is valid 
+                # by reading the constant from the msc response
                 pages = msc_table[idx+1][1][2].split(".")
+                cprint("check pages","D")
+                cprint(pages,"D")
                 for p in pages:
                         cprint(concretization_data[p],"D")
                         if response == None or not( concretization_data[p] in response.text):

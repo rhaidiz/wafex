@@ -23,7 +23,7 @@ def msc(aat):
     lines = msc.split("\n")
     result = []
     request_regexp = re.compile(r'(.*?)\*->\*(.*?):(?:.*?).http_request\((.*)\)\.tag([0-9]*)')
-    response_regexp = re.compile(r'(.*?)\*->\*(.*?):http_response\((.*?)\)')
+    response_regexp = re.compile(r'(.*?)\*->\*(.*?):http_response\((.*)\)')
     line_num = 0
     tag = "tag"
     for line in lines:

@@ -25,12 +25,12 @@ def filesystem(msc_table,extended):
     for idx, row in enumerate(msc_table):
         tag = row[0]
         message = row[1]
+        sender = message[0]
+        receiver = message[1]
+        msg = message[2]
         if message and len(message) == 3:
-            sender = message[0]
-            receiver = message[1]
-            msg = message[2]
-            # message is valid
-            if(message[0] not in entities):
+            # message is a request
+            if(sender not in entities):
                 cprint(message,"D")
                 # message is a request:
                 # - evil_file is a fileupload (without sqli)
@@ -43,10 +43,13 @@ def filesystem(msc_table,extended):
                         entry = {"attack":5,"params":{p.group(1):"evil_file"}}
                         extended[tag] = entry
                         fs.append(["u",p.group(1)])
+                # this is an indefined path injection, access a not specified file
+                # in the filesystem
                 elif "path_injection" in msg:
                     p = re.search("([a-zA-Z]*)\.path_injection",msg)
                     if p != None:
                         entry = {"attack":4,"params":{p.group(1):"?"}}
+                        extended[tag] = entry
                         fs.append(["r",p.group(1)])
                 elif "f_file(" in msg:
                     # there's a request that sends something function of file
@@ -75,10 +78,23 @@ def filesystem(msc_table,extended):
                             extended[tag] = {"attack":-1}
                             cprint("normal request","D")
                             fs.append(["n",0])
-                    # this is a read attack
-    cprint("filesystem matrix","D")
-    cprint(fs,"D")
-
+            else:
+                # check eveytime there is a message from webapplication to
+                # filesystem right alter a message between intruder and webapp
+                # if that is the case, possible path traversal
+                if sender == "webapplication" and receiver == "<i>":
+                    prev_row = msc_table[idx-1]
+                    prev_tag = prev_row[0]
+                    prev_message = prev_row[1]
+                    prev_msg = prev_message[2]
+                    cprint("qui","D")
+                    cprint(msg,"D")
+                    read_file_regexp = re.search("f_file\((.*)\)",msg)
+                    if read_file_regexp != None:
+                        payload = read_file_regexp.group(1)
+                        if payload in prev_msg:
+                            cprint("we have a possible traversal in ..","D")
+                            cprint(prev_tag,"D")
 
 
 """
