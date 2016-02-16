@@ -76,12 +76,9 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
     # loop the msc_table, the main execution loop
     for idx, message in enumerate(msc_table):
-
-
-    
+        
         if "<i" in message[1][0]:
             # intruder step
-
             tag = message[0]
             m = message[1]
             concretization_details = concretization_json[tag]
@@ -95,8 +92,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
             # if we have the keep-cookie option, we make a first empty request to
             # get the initial set-cookie
-            # TODO: it should be improved considering also the parameters and the cookies
-            # which right now are not considered
+            # TODO: request creation should be improved considering also the 
+            # parameters and the cookies
             if config.keep_cookie and not __got_cookie:
                #msc_table[
                cprint("executing first request for getting cookie","D")
@@ -115,23 +112,26 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             if not c:
                 exit(0)
 
-
-            cprint("boooogg")
+            # SQL-injection filesystem READ
             if attack == 1:
-                cprint("Filesystem read attack!",color="y")
-                sqlmap_init = sqlmap_init(message,concretization_details,concretization_data,idx)
-                execute_sqlmap(sqlmap_init)
+                cprint(" SQLI Filesystem read attack!",color="y")
+                _init = sqli_init(message,concretization_details,concretization_data,idx)
+                execute_sqlmap(_init)
                 # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
                 # list extracted file content
-                __list_extracted_files()
+                #__list_extracted_files()
+                continue
+            
+            # SQL-injection filesystem WRITE
             if attack == 2:
-                # perform a file writing attack
-                sqlmap_init = sqlmap_init(message,concretization_details,concretization_data,idx)
-                execute_sqlmap(sqlmap_init)
+                _init = sqli_init(message,concretization_details,concretization_data,idx)
+                execute_sqlmap(_init)
                 continue
 
+
+            # SQL-injection 
             if attack == 0:
-                # data extraction or authentication bypass
+                # data extraction 
                 if params != None:
                    cprint("Data extraction attack!",color="y") 
                    # data extraction, execute sqlmap
@@ -145,8 +145,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                    if not sqlmap_output:
                        cprint("No data extracted from the database","W")
                        exit()
+                # authentication bypass
                 else:
-                   # authentication bypass
                    cprint("Authentication bypass attack!",color="y") 
                    tag = message[0]
                    req = {}
@@ -168,9 +168,9 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                        cprint("bypass error, abort execution",color="r")
                        exit(0)
 
+            # exploit the sqli here, which is also a normal request where we use
+            # the result from sqlmap
             elif attack == 6:
-                # exploit the sqli here, which is also a normal request where we use
-                # the result from sqlmap
                 cprint("exploit sqli here, crafted request","D")
                 
                 tag = message[0]
@@ -241,8 +241,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                             req["cookies"] = dict( item.split("=") for item in header.split("%26") )
                             response = __execute_request(req)
                             found = __check_response(idx,msc_table,concretization_data,response)
-
-                if len(params_perm) > 0 and len(cookies_perm) == 0:
+                elif len(params_perm) > 0 and len(cookies_perm) == 0:
                     # we only have params
                     for param in params_perm:
                         if not found:
@@ -251,8 +250,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                             req["params"] = dict( item.split("=") for item in param.split("%26") )
                             response = __execute_request(req)
                             found = __check_response(idx,msc_table,concretization_data,response)
-
-                if len(params_perm) > 0 and len(cookies_perm) > 0:
+                elif len(params_perm) > 0 and len(cookies_perm) > 0:
                     # we have params and cookies values
                     for param in params_perm:
                         req["params"] = dict( item.split("=") for item in param.split("%26") )
@@ -271,8 +269,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 else:
                     cprint("Exploitation succceded",color="g")
 
+            # normal http request
             elif attack == -1:
-                # normal http request
                 cprint(msc_table[idx][0],"D")
 
                 tag = message[0]

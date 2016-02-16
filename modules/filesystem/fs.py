@@ -50,8 +50,8 @@ def filesystem(msc_table,extended):
                         fs.append(["r",p.group(1)])
                 elif "f_file(" in msg:
                     # there's a request that sends something function of file
-                    p = re.findall("f_file\(([a-zA-Z]*)\)",msg)
-                    fs.append(["e",p])
+                    abfilename = re.findall("f_file\(([a-zA-Z]*)\)",msg)
+                    fs.append(["e",abfilename])
                     for idx2,row2 in enumerate(msc_table):
                         # when we find that f_file(?) is used, we should loop from the
                         # beginning until now and check where we should retrieve this
@@ -63,9 +63,9 @@ def filesystem(msc_table,extended):
                             receiver = message2[1]
                             msg = message2[2]
                             # message is valid
-                            if(message2[0] not in entities):
-                                for v in p:
-                                    k_v = re.search("([a-zA-Z]*)\.htpwd",msg)
+                            if(message2[0] not in entities and not "sqli" in msg ):
+                                for v in abfilename:
+                                    k_v = re.search("([a-zA-Z]*)\."+abfilename,msg)
                                     entry = {"attack":4,"params":{k_v.group(1),v}}
                                     extended[tag2] = entry
                                     fs[idx2] = ["r",v]

@@ -57,9 +57,13 @@ def sqli(msc_table,extended):
                     entry = {"attack":2}
                     extended[tag] = entry
                     sqli.append(["w",0])
-                # if is not a writing we check if sqli is followed by anything that starts with a lower-case letter
+                # if is not a writing we check if sqli is followed by 
+                # anything that starts with a lower-case letter
                 elif( re.search('sqli\.[a-z]',message[len(message)-1]) != None ):
-                    entry = {"attack":1}
+                    print(message[len(message)-1])
+                    par = re.search('([a-zA-Z]*)\.sqli',message[len(message)-1])
+                    
+                    entry = {"attack":1,"params":{par.group(1)}}
                     extended[tag] = entry
                     sqli.append(["r",0])
                 # otherwise is "standard" sqli
@@ -154,7 +158,7 @@ def sqli_init(message,concretization_details,concretization_data,idx):
         file_read = []
         # get the name of the file to retrieve
         abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',request_message).group(1)
-        cprint(tag_file_to_retrieve,"D")
+        cprint(abstract_file_to_retrieve,"D")
         real_file_to_retrieve = concretization_data["files"][abstract_file_to_retrieve]
         cprint("file to read: " + real_file_to_retrieve,"D")
         sqli_init["read"] = real_file_to_retrieve
@@ -239,7 +243,7 @@ def execute_sqlmap(sqlmap_details):
         for tblcol in data_to_extract:
             tbl_list = tblcol.split(".")
             cprint(tbl_list[0],"D")
-            # TODO: in here we're basically rewriting the table name
+            # TODO: in here we're basically overwriting the table name
             # whenever we find a new one
             tbl = tbl_list[0]
             col = col + tbl_list[1]
@@ -249,7 +253,7 @@ def execute_sqlmap(sqlmap_details):
         pass
     try:
         file_to_extract = sqlmap_details["read"]
-        # ask if you want to change the file or continue ? 
+        # TODO: ask if you want to change the file or continue ? 
         sqlmap.set_option("rFile",file_to_extract,task)
     except KeyError:
         pass
