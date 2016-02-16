@@ -13,6 +13,7 @@ import threading
 
 from modules.logger import cprint
 from modules.wrapper import sqlmap
+from modules.http import execute_request
 
 # --==[ SQL Injection ]==--
 # 1: whenever I find a sqli somewhere, look for i -> webapp : tuple(of_the_same_sqli)
@@ -129,18 +130,11 @@ def sqlmap_parse_data_extracted(sqlmap_output):
 
 
 """
-Return the initialization structur for executing sqlmap. (Readability method)
+Return the initialization structur for executing sqlmap. 
 """
-def sqli_init(message,concretization_details,concretization_data,idx):
-    # message format
-    # ('tag1', ('<i>', 'webapplication', 'u.sqli.secureFile.p.Password(121)'))
-    request_message = message[1][2]
-    attack = concretization_details["attack"]
-
-    cprint("sqli attack","D")
-    cprint(message,"D")
-    cprint(concretization_details,"D")
-    tag = message[0]
+def sqli_init(tag,concretization_data,read=None,extract=None,write=None):
+    cprint("sqli_init","D")
+    cprint(tag,"D")
     
     # we first deal with the concretization parameters needed for all initialization
     sqli_init = {}
@@ -153,48 +147,15 @@ def sqli_init(message,concretization_details,concretization_data,idx):
         params[tmp[0]] = tmp[1]
     sqli_init["params"] = params
 
-    # this code executes only if we read from filesystem
-    if attack == 1:
-        file_read = []
-        # get the name of the file to retrieve
-        abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',request_message).group(1)
-        cprint(abstract_file_to_retrieve,"D")
-        real_file_to_retrieve = concretization_data["files"][abstract_file_to_retrieve]
-        cprint("file to read: " + real_file_to_retrieve,"D")
-        sqli_init["read"] = real_file_to_retrieve
-
-
-    # this code executes only if we extract dara from the database
-    if attack == 0:
-        # data to extract
-        extract = []
-        exploitations = concretization_details["params"]
-        cprint("Exploitations","D")
-        cprint(exploitations,"D")
-        for idx,tag in enumerate(exploitations):
-              exploit_points = exploitations[tag]
-              for k in exploit_points:
-                  try:
-                      tmp_map = concretization_data[tag]["params"][k].split("=")[0]
-                  except KeyError:
-                      tmp_map = concretization_data[tag]["cookies"][k].split("=")[0]
-                  tmp_table = concretization_data[tag]["tables"][tmp_map]
-                  extract.append(tmp_table)
+    if read != None:
+        sqli_init["read"] = read
+    if extract != None:
         sqli_init["extract"] = extract
-
-    # this code executes only if we extract data from database
-    if attack == 2:
-        # in this case we upload a custom script which depends on
-        # the execution itself
-        abstract_evil_file = re.search(r'sqli\.([a-zA-Z_]*)',request_message).group(1)
-        real_evil_file = concretization_data["files"][abstract_evil_file]
-        cprint("file to write: " + real_evil_file,"D")
-        
-        sqli_init["write"] = real_evil_file
-
-        
-
+    if write != None:
+        sqli_init["write"] = write
     return sqli_init
+
+
     
 def execute_sqlmap(sqlmap_details):
     global data_to_extract
@@ -294,14 +255,15 @@ def execute_sqlmap(sqlmap_details):
 
 
 def execute_bypass(s,request,check):
-    # now let's change the params
+    # now let's inject the params
+    # TODO: fix, we assume we only have one param with ?
     params = request["params"]
     for park, parv in params.items():
         if parv == "?":
             with open("bypasspayloads.txt") as f:
                 for line in f.readlines():
                     params[park] = line.rstrip()
-                    r = __execute_request(request)
+                    r = execute_request(s,request)
                     if check in r.text:
                         return True
     return False
