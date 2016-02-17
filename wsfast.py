@@ -14,7 +14,6 @@ import glob
 from modules.filesystem.fs import filesystem
 from modules.sqli.sqli import sqli
 from modules.engine import execute_attack
-from modules.parser import msc
 from modules.logger import cprint
 from modules.mc import mc
 
@@ -68,19 +67,15 @@ def main():
     # first thing is to confert the ASLan++ model in ASLan
     file_aslan_model, err = mc.aslanpp2aslan(load_model)
 
-
-
-
     # we can now run the model checker, by default we use Cl-Atse locally 
     file_attack_trace = mc.local_cl_atse(file_aslan_model)
-
 
     # translate the attack trace in msc 
     msc_output = mc.generate_msc(file_attack_trace,file_aslan_model)
 
     if not args.mc_only:
          # read the output and parse it
-         msc_table = msc(msc_output)
+         msc_table = mc.parse_msc(msc_output)
          concretization_json = {}
          sqli_matrix = sqli(msc_table,concretization_json)
          fs_matrix = filesystem(msc_table,concretization_json)

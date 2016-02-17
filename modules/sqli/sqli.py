@@ -10,6 +10,10 @@ import requests
 import linecache
 import json
 import threading
+from os.path import expanduser
+from os.path import join
+from os.path import isfile
+from os import listdir
 
 from modules.logger import cprint
 from modules.wrapper import sqlmap
@@ -267,3 +271,23 @@ def execute_bypass(s,request,check):
                     if check in r.text:
                         return True
     return False
+
+
+"""
+retrieve the list of files extracted by sqlmap which are stored in 
+~/.sqlmap/output/[domain]/files
+"""
+def get_list_extracted_files(attack_domain):
+    cprint("domain: " + attack_domain,"D")
+    __sqlmap_files_path = expanduser(join("~",".sqlmap","output",attack_domain,"files"))
+
+    try:
+        files = [f for f in listdir(__sqlmap_files_path) if isfile(join(__sqlmap_files_path,f))]
+    except FileNotFoundError:
+        cprint("File not found! " + __sqlmap_files_path,"E")
+        cprint("Aborting execution","E")
+        exit(0)
+    for f in files:
+        cprint("content of file: " +join( __sqlmap_files_path, f))
+        txt = open(join(__sqlmap_files_path,f))
+        print(txt.read())

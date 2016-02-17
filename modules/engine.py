@@ -28,6 +28,7 @@ from modules.sqli.sqli import sqlmap_parse_data_extracted
 from modules.sqli.sqli import sqli_init
 from modules.sqli.sqli import execute_sqlmap
 from modules.sqli.sqli import execute_bypass
+from modules.sqli.sqli import get_list_extracted_files
 from modules.http import execute_request
 from modules.filesystem.traversalengine import execute_traversal
 
@@ -159,7 +160,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 
                 # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
                 # list extracted file content
-                #__list_extracted_files()
+                get_list_extracted_files(attack_domain)
                 continue
             
             # SQL-injection filesystem WRITE
