@@ -264,7 +264,7 @@ def execute_bypass(s,request,check):
     params = request["params"]
     for park, parv in params.items():
         if parv == "?":
-            with open("bypasspayloads.txt") as f:
+            with open("modules/sqli/bypasspayloads.txt") as f:
                 for line in f.readlines():
                     params[park] = line.rstrip()
                     r = execute_request(s,request)
