@@ -29,11 +29,11 @@ def execute_request(s,request):
         cookies = []
     #cookies = {'8c7a5a8dc980f43a35da380d188606dd': 'my-app/0.0.1'}
 
-    cprint("Execute request")
-    cprint(url)
-    cprint(method)
-    cprint(params)
-    cprint(cookies)
+    cprint("Execute request","V")
+    cprint(url,"V")
+    cprint(method,"V")
+    cprint(params,"V")
+    cprint(cookies,"V")
     #url = 'https://157.27.244.25/chained'
     if config.proxy != None:
         proxies = {"http" : "http://"+config.proxy,"https":"https://"+config.proxy}

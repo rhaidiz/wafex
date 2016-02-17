@@ -91,7 +91,7 @@ def exitcleanup():
     cprint("Exiting wsfast..., removing temporary files!")
     for fl in glob.glob("./tmp_*"):
         os.remove(fl)
-    cprint("Done!")
+    cprint("Bye!")
 
 
 if __name__ == "__main__":

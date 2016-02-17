@@ -80,7 +80,7 @@ def filesystem(msc_table,extended):
                             fs.append(["n",0])
             else:
                 # check eveytime there is a message from webapplication to
-                # filesystem right alter a message between intruder and webapp
+                # filesystem right alter a message sent from the intruder to webapp
                 # if that is the case, possible path traversal
                 if sender == "webapplication" and receiver == "<i>":
                     prev_row = msc_table[idx-1]

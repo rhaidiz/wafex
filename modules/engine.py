@@ -43,7 +43,7 @@ attack_domain = ""
 data_to_extract = []
 
 def exitcleanup():
-    print("exiting "+__name__)
+    cprint("exiting "+__name__,"V")
 
 # takes an attack trace and an extension matrix, and execute the attack
 def execute_attack(msc_table,concretization_json,file_aslanpp):
@@ -89,9 +89,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             message = m[2]
             cprint(message,"D")
             
-
             concretization_details = concretization_json[tag]
-
             attack = concretization_details["attack"]
             params = None
             try:
@@ -101,7 +99,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
             # if we have the keep-cookie option, we make a first empty request to
             # get the initial set-cookie
-            # TODO: request creation should be improved considering also the 
+            # TODO: this request should be improved considering also the 
             # parameters and the cookies
             if config.keep_cookie and not __got_cookie:
                #msc_table[
@@ -121,7 +119,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             if not c:
                 exit(0)
 
-            # file reading 
+            # fs reading 
             if attack == 4:
                 cprint("File reading attack", color="y")
                 cprint("execute attack on param","D")
@@ -136,13 +134,20 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                     params[tmp[0]] = tmp[1]
                 req["params"] = params
                 
+                # TODO: the next two lines are so bad
                 pages = msc_table[idx+1][1][2].split(".")
-                #check = concretization_data[pages[0]] # baaad, we assume that position 0 is always the page we're looking for
-                is_traversed = execute_traversal(s,req,"dir traversal","flag.txt")
+                # baaad, we assume that position 0 is always the page we're looking for
+                check = concretization_data[pages[0]] 
+                cprint(check,"D")
+                if "path_injection" in message:
+                    # means a not specified path injection
+                    # check for all the defaults
+                    is_traversed = execute_traversal(s,req,"root")
                 if is_traversed:
-                    cprint("yep, trovato")
+                    cprint("Directory traversal succeeded",color="g")
+                    continue 
                 else:
-                    cprint("nope, aborting")
+                    cprint("Directory traversal error, file not found!",color="r")
                     exit(0)
                 continue
 
@@ -224,7 +229,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                    check = concretization_data[pages[0]] # baaad, we assume that position 0 is always the page we're looking for
                    is_bypassed = execute_bypass(s,req,check)
                    if is_bypassed:
-                       cprint("bypass successed",color="g")
+                       cprint("bypass succeeded",color="g")
                    else:
                        cprint("bypass error, abort execution",color="r")
                        exit(0)
