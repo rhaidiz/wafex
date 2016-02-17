@@ -11,8 +11,10 @@ Supported features:
  - header fields in the model
  - full trace execution with data extraction amd (basic) authentication bypass
 
-Not yet supported:
+Partially supported
  - filesystem attacks
- - graphical interface
- - support multitrace 
+
+Not yet supported:
+ - GUI
+ - multitrace 
 
