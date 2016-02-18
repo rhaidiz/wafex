@@ -1,8 +1,8 @@
 #!/usr/local/bin/python3.5
 
 """
-Wrapper around the sqlmap tool. This wrapper provides 
-convenient methods for executing sqlmap and returning 
+Wrapper around the sqlmap tool. This wrapper provides
+convenient methods for executing sqlmap and returning
 its output.
 """
 #import global_var
@@ -35,15 +35,6 @@ def run_api_server():
     # NOTE: when executing sqlmapapi.py the working directory must be ./sqlmap/ otherwise when the analysis
     # is started, it raises an not fil execptio 'cause it cannot find sqlmap.py
     sqlmap_process = subprocess.Popen(SQLMAP_API.split(" "),stderr=subprocess.PIPE, stdout=subprocess.PIPE,cwd="./sqlmap/")
-    #cprint("""
-    # _____  _____ _                             
-    #/  ___||  _  | |                            
-    #\ `--. | | | | |      _ __ ___   __ _ _ __  
-    # `--. \| | | | |     | '_ ` _ \ / _` | '_ \ 
-    # /\__/ /\ \/' / |____ | | | | | | (_| | |_) |
-    # \____/  \_/\_\_____/ |_| |_| |_|\__,_| .__/ 
-    #                              | |      API    
-    #                              |_|""",color="g")
     while True:
         line = sqlmap_process.stdout.readline()
         if "REST-JSON API server connected to IPC database" in line.decode('utf-8'):
@@ -52,13 +43,7 @@ def run_api_server():
         if not line: break
 
 def kill():
-    sqlmap_process.kill()    
-    # remove temp sqlmap folder
-    #shutil.rmtree(os.path.expanduser('~/.sqlmap'))
-    #try:
-    #except Exception:
-    #    cprint("sqlmap reset error","E")
-    #    pass
+    sqlmap_process.kill()
 
 
 # set a value for an option to a task_id
@@ -182,8 +167,6 @@ class MyThread(threading.Thread):
 
 def exitcleanup():
     cprint("Exiting sqlmap","V")
-
-
     kill()
 
 if __name__ == "__main__":

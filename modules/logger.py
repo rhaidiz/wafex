@@ -39,10 +39,10 @@ def cprint(msg,t="I",color="d"):
     elif t == "V":
         t_msg = msg;
     if (t == "D") & config.DEBUG:
-        print("\033[0;35m[DEBUG]\t"+"\033[0m",end="")
+        print("\033[0;36m[DEBUG]\t"+"\033[0m",end="")
         print(t_msg)
     elif(t == "V") & config.verbosity:
-        print("\033[0;32m[VERB]\t"+"\033[0m",end="")
+        print("\033[1;32m[VERB]\t"+"\033[0m",end="")
         print(t_msg)
 
 if __name__ == "__main__":
