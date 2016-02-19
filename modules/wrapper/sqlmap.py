@@ -31,7 +31,7 @@ sqlmap_process      = None
 def run_api_server():
     global sqlmap_process
     atexit.register(exiting)
-    logger.info("starting aaaaa sqlmap APIs")
+    logger.info("starting sqlmap APIs")
     # NOTE: when executing sqlmapapi.py the working directory must be ./sqlmap/ otherwise when the analysis
     # is started, it raises a not file execeptio 'cause it cannot find sqlmap.py
     sqlmap_process = subprocess.Popen(SQLMAP_API.split(" "),stderr=subprocess.PIPE, stdout=subprocess.PIPE,cwd="./sqlmap/")
