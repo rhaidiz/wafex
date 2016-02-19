@@ -7,7 +7,7 @@ This module executes an http request
 import requests
 import config
 
-from modules.logger import cprint
+from modules.logger import logger
 # parameters for configuring the requests maker:
 # Requests group
 # - basic authentication params
@@ -29,11 +29,11 @@ def execute_request(s,request):
         cookies = []
     #cookies = {'8c7a5a8dc980f43a35da380d188606dd': 'my-app/0.0.1'}
 
-    cprint("Execute request","V")
-    cprint(url,"V")
-    cprint(method,"V")
-    cprint(params,"V")
-    cprint(cookies,"V")
+    logger.debug("Execute request")
+    logger.debug(url)
+    logger.debug(method)
+    logger.debug(params)
+    logger.debug(cookies)
     #url = 'https://157.27.244.25/chained'
     if config.proxy != None:
         proxies = {"http" : "http://"+config.proxy,"https":"https://"+config.proxy}
@@ -50,7 +50,7 @@ def execute_request(s,request):
             r = s.post(url, data = params, verify=False, cookies=cookies,auth=('regis','password'))
 
     #r = requests.get(url, cookies=cookies, proxies=proxy, verify=False, auth=('regis','password'))
-    cprint(r.text,"D")
+    logger.debug(r.text)
     return r
 
 """

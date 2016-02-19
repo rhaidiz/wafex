@@ -3,47 +3,19 @@
 """
 This module provides convinient output printing method
 """
-
+import logging
 import config
 
-def cprint(msg,t="I",color="d"):
-    t_msg = ""
+from modules.thirdparty.ansistrm.ansistrm import ColorizingStreamHandler
 
-    if color == "d":
-        #white
-        print("",end="")
-    if color == "r":
-        #red
-        print("\033[0;31m",end="")
-    elif color == "g":
-        #green
-        print("\033[0;32m",end="")
-    elif color == "y":
-        #yellow
-        print("\033[0;33m",end="")
+""" Setup the logger """
+logging.getLogger("requests").setLevel(logging.WARNING) # configure loggin to log only from WARNING up
+LOGGER = logging.getLogger("wsfast")
+LOGGER_HANDLER = ColorizingStreamHandler()
+FORMATTER = logging.Formatter("\r[%(asctime)s] [%(levelname)s] %(message)s", "%H:%M:%S")
+LOGGER_HANDLER.setFormatter(FORMATTER)
+LOGGER.addHandler(LOGGER_HANDLER)
+LOGGER.setLevel(logging.DEBUG)
 
-    if t == "E":
-         print("\033[0;31m[ERROR]\t",end="")
-         print(msg,end="")
-         print("\033[0m")
-    elif t == "I":
-         print("[INFO]\t",end="")
-         print(msg,end="") 
-         print("\033[0m")
-    elif t == "W":
-         print("\033[0;33m[WARNING]\t",end="")
-         print(msg,end="")
-         print("\033[0m")
-    elif t == "D":
-        t_msg = msg
-    elif t == "V":
-        t_msg = msg;
-    if (t == "D") & config.DEBUG:
-        print("\033[0;36m[DEBUG]\t"+"\033[0m",end="")
-        print(t_msg)
-    elif(t == "V") & config.verbosity:
-        print("\033[1;32m[VERB]\t"+"\033[0m",end="")
-        print(t_msg)
+logger = LOGGER
 
-if __name__ == "__main__":
-    cprint("ciao","E")

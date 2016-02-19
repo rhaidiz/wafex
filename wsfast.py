@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3.5
+#!/usr/bin/env python3.5
 
 """
 WSFAST main file
@@ -14,8 +14,10 @@ import glob
 from modules.filesystem.fs import filesystem
 from modules.sqli.sqli import sqli
 from modules.engine import execute_attack
-from modules.logger import cprint
 from modules.mc import mc
+from modules.logger import logger
+
+
 
 def main():
     # command line parsing
@@ -38,14 +40,14 @@ def main():
 
     # check if model file exists
     if not os.path.isfile(load_model):
-        cprint("Error: " + load_model + " file not found")
+        logger("Error: " + load_model + " file not found")
         exit()
     # check if concretization file exists only if --mc-only hasn't been specified
     if args.c == None and not args.mc_only:
-        cprint("Concretization file not specified","W")
+        logger("Concretization file not specified")
         exit()
     elif not args.mc_only and not os.path.isfile(args.c):
-        cprint("Error: " + args.c + " file not found","W")
+        logger("Error: " + args.c + " file not found")
         exit()
     elif not args.mc_only and args.c != None and  os.path.isfile(args.c):
         config.concretization = args.c
@@ -79,7 +81,7 @@ def main():
          concretization_json = {}
          sqli_matrix = sqli(msc_table,concretization_json)
          fs_matrix = filesystem(msc_table,concretization_json)
-         print(concretization_json)
+         logger.info(concretization_json)
 
          # execute the attack trace
          execute_attack(msc_table,concretization_json,load_model)
@@ -88,10 +90,10 @@ def main():
 
 def exitcleanup():
     # remove temporary files
-    cprint("Exiting wsfast..., removing temporary files!")
+    logger.info("Exiting wsfast..., removing temporary files!")
     for fl in glob.glob("./tmp_*"):
         os.remove(fl)
-    cprint("Bye!")
+    logger.info("Bye!")
 
 
 if __name__ == "__main__":

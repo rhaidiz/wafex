@@ -15,7 +15,7 @@ from os.path import join
 from os.path import isfile
 from os import listdir
 
-from modules.logger import cprint
+from modules.logger import logger
 from modules.wrapper import sqlmap
 from modules.http import execute_request
 
@@ -26,7 +26,7 @@ from modules.http import execute_request
 # 2: if I don't perform a data extraction, a 0 should appear
 # 3: sqli.lfi identifies a sql-injection for reading
 # 4: sqli.evil_file identifies a sql-injection for writing
-# 
+#
 
 
 # Matrix form:
@@ -43,31 +43,30 @@ extended: is a JSON structure that extendes the msc_table for concretizing
             attacks
 """
 def sqli(msc_table,extended):
-    cprint("Starting extend_trace_sqli","D")
+    logger.debug("Starting extend_trace_sqli")
     sqli = []
     injection_point = ""
     for idx, message in enumerate(msc_table):
-        cprint(message,"D")
+        logger.debug(message)
         tag = message[0]
         message = message[1]
         if message and len(message) == 3:
             # read message and check if it's a request and require an SQLi
             if (not message[0] == "webapplication") and "sqli" in message[len(message)-1] and not "tuple" in message[len(message)-1]:
-                cprint("there is a sqli","D")
-                cprint(message,"D")
-                cprint("---------------","D")
+                prova = "9"
+                logger.debug("there is a sqli %s" % str(message))
                 # now we should check what kind of sqli isa
                 # is sqli is followed by evil_file, is a writing
                 if( "sqli.evil_file" in message[len(message)-1] ):
                     entry = {"attack":2}
                     extended[tag] = entry
                     sqli.append(["w",0])
-                # if is not a writing we check if sqli is followed by 
+                # if is not a writing we check if sqli is followed by
                 # anything that starts with a lower-case letter
                 elif( re.search('sqli\.[a-z]',message[len(message)-1]) != None ):
-                    print(message[len(message)-1])
+                    logger.debug(message[len(message)-1])
                     par = re.search('([a-zA-Z]*)\.sqli',message[len(message)-1])
-                    
+
                     entry = {"attack":1,"params":{par.group(1)}}
                     extended[tag] = entry
                     sqli.append(["r",0])
@@ -83,13 +82,11 @@ def sqli(msc_table,extended):
                 #param_regexp = re.compile(r'(.*?).tuple\(')
                 param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
                 params = param_regexp.findall(message[len(message)-1])
-                cprint("exploiting sqli here","D")
-                cprint("Message:","D")
-                cprint(message,"D")
-                cprint("Params: ","D")
-                cprint(params,"D")
-                cprint(tag,"D")
-                cprint("--------------------","D")
+                logger.debug("exploiting sqli here")
+                logger.debug("Message: %s" % str(message))
+                logger.debug("Params: %s" % str(params))
+                logger.debug("Tag: %s" % str(tag))
+                logger.debug("--------------------")
                 # create a multiple array with params from different lines
                 t = msc_table[injection_point][0]
                 extended[t]["params"] = {tag:params}
@@ -100,20 +97,20 @@ def sqli(msc_table,extended):
                 if tag not in extended:
                     extended[tag] = {"attack":-1}
                     sqli.append(["n",0])
-    cprint(sqli,"D")
+    logger.debug("%s" % str(sqli))
     return sqli
 
 
 def sqlmap_parse_data_extracted(sqlmap_output):
     global data_to_extract
     # Let's parse the data extracted
-    cprint(sqlmap_output,"D")
+    logger.debug(sqlmap_output)
     extracted_values = {}
-    cprint(data_to_extract,"D")
+    logger.debug(data_to_extract)
     for tblcol in data_to_extract:
-        cprint(tblcol,"D")
+        logger.debug(tblcol)
         tbl_list = tblcol.split(".")
-        cprint(tbl_list[1],"D")
+        logger.debug(tbl_list[1])
         tmp_table = tbl_list[0]
         tmp_column = tbl_list[1]
         try:
@@ -123,23 +120,21 @@ def sqlmap_parse_data_extracted(sqlmap_output):
         try:
             extracted_values[tmp_table][tmp_column] = sqlmap_output["data"][2]["value"][tmp_column]["values"]
         except Exception:
-            #cprint(sqlmap.get_log(task),"V")
-            cprint("error in the sqlmap output","E")
+            logger.critical("error in the sqlmap output")
             sqlmap.kill
-            cprint(sqlmap_output,"D")
             exit()
-        cprint("Ending sqlmap extraction","D") 
+        logger.debug("Ending sqlmap extraction")
         sqlmap.kill()
     return extracted_values
 
 
 """
-Return the initialization structur for executing sqlmap. 
+Return the initialization structur for executing sqlmap.
 """
 def sqli_init(tag,concretization_data,read=None,extract=None,write=None):
-    cprint("sqli_init","D")
-    cprint(tag,"D")
-    
+    logger.debug("sqli_init")
+    logger.debug(tag)
+
     # we first deal with the concretization parameters needed for all initialization
     sqli_init = {}
     sqli_init["url"] = concretization_data[tag]["url"]
@@ -160,15 +155,14 @@ def sqli_init(tag,concretization_data,read=None,extract=None,write=None):
     return sqli_init
 
 
-    
 def execute_sqlmap(sqlmap_details):
     global data_to_extract
-    cprint(sqlmap_details,"D")
+    logger.debug(sqlmap_details)
     url = sqlmap_details["url"]
     method = sqlmap_details["method"]
     params = sqlmap_details["params"]
 
-    cprint("run sqlmapapi.py")
+    logger.info("run sqlmapapi.py")
     sqlmap.run_api_server()
     task = sqlmap.new_task()
 
@@ -183,8 +177,8 @@ def execute_sqlmap(sqlmap_details):
         c = ""
         for k,v in config.cookies.items():
             c = c + k + "=" + v + ";"
-        cprint("sqlmap with cookie","D")
-        cprint(c,"D")
+        logger.debug("sqlmap with cookie")
+        logger.debug(c)
         sqlmap.set_option("cookie",c,task)
 
     url_params = ""
@@ -200,14 +194,14 @@ def execute_sqlmap(sqlmap_details):
 
     try:
         data_to_extract = sqlmap_details["extract"]
-        cprint(data_to_extract,"D")
+        logger.debug(data_to_extract)
         sqlmap.set_option("dumpTable","true",task)
         # set data extraction only if we have data to extract
         col = ""
         tbl = ""
         for tblcol in data_to_extract:
             tbl_list = tblcol.split(".")
-            cprint(tbl_list[0],"D")
+            logger.debug(tbl_list[0])
             # TODO: in here we're basically overwriting the table name
             # whenever we find a new one
             tbl = tbl_list[0]
@@ -218,7 +212,7 @@ def execute_sqlmap(sqlmap_details):
         pass
     try:
         file_to_extract = sqlmap_details["read"]
-        # TODO: ask if you want to change the file or continue ? 
+        # TODO: ask if you want to change the file or continue ?
         sqlmap.set_option("rFile",file_to_extract,task)
     except KeyError:
         pass
@@ -226,34 +220,34 @@ def execute_sqlmap(sqlmap_details):
 
         file_to_write = sqlmap_details["write"]
         if not isfile(file_to_write):
-            cprint("Error: evil file not found","E")
+            debug.critical("Error: evil file not found")
             exit()
-        cprint(dirname(realpath(__file__)))
+        logger.debug(dirname(realpath(__file__)))
         sqlmap.set_option("wFile",join(".",file_to_write),task)
-        cprint("In which remote path you want to try to upload the file?")
+        logger.debug("In which remote path you want to try to upload the file?")
         path = input()
         sqlmap.set_option("dFile",path,task)
     except KeyError:
         pass
 
-    cprint("sqlmap analysis started")
+    logger.info("sqlmap analysis started")
     sqlmap.start_scan(url,task)
-    cprint(url,"D")
-    cprint(method,"D")
-    cprint(params,"D")
+    logger.debug(url)
+    logger.debug(method)
+    logger.debug(params)
 
     stopFlag = threading.Event()
     sqlmap_output = ""
     while not stopFlag.wait(5):
         r = sqlmap.get_status(task)
         if "terminated" in r:
-            cprint(sqlmap.get_log(task),"D")
-            cprint("sqlmap analysisnalysis terminated")
+            logger.info(sqlmap.get_log(task))
+            logger.info("sqlmap analysisnalysis terminated")
             sqlmap_output = sqlmap.get_data(task)
             stopFlag.set()
         else:
-            cprint("sqlmap analysis in progress ... ")
-            cprint(sqlmap.get_log(task),"D")
+            logger.info("sqlmap analysis in progress ... ")
+            logger.debug(sqlmap.get_log(task))
 
     return sqlmap_output
 
@@ -274,20 +268,20 @@ def execute_bypass(s,request,check):
 
 
 """
-retrieve the list of files extracted by sqlmap which are stored in 
+retrieve the list of files extracted by sqlmap which are stored in
 ~/.sqlmap/output/[domain]/files
 """
 def get_list_extracted_files(attack_domain):
-    cprint("domain: " + attack_domain,"D")
+    logger.debug("domain: " + attack_domain)
     __sqlmap_files_path = expanduser(join("~",".sqlmap","output",attack_domain,"files"))
 
     try:
         files = [f for f in listdir(__sqlmap_files_path) if isfile(join(__sqlmap_files_path,f))]
     except FileNotFoundError:
-        cprint("File not found! " + __sqlmap_files_path,"E")
-        cprint("Aborting execution","E")
+        logger.critical("File not found! " + __sqlmap_files_path)
+        logger.critical("Aborting execution")
         exit(0)
     for f in files:
-        cprint("content of file: " +join( __sqlmap_files_path, f))
+        logger.info("content of file: " +join( __sqlmap_files_path, f))
         txt = open(join(__sqlmap_files_path,f))
         print(txt.read())

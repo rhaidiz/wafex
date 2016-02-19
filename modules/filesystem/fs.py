@@ -9,7 +9,8 @@ import config
 import requests
 import linecache
 import json
-from modules.logger import cprint
+
+from modules.logger import logger
 
 
 """
@@ -19,7 +20,7 @@ extended: is a JSON structure that extendes the msc_table for concretizing
             attacks
 """
 def filesystem(msc_table,extended):
-    cprint("Starting extend_trace_filesystem","D")
+    logger.debug("Starting extend_trace_filesystem")
     entities = {"webapplication","filesystem","database","<webapplication>","<filesystem>","<database>"}
     fs = []
     for idx, row in enumerate(msc_table):
@@ -31,13 +32,13 @@ def filesystem(msc_table,extended):
         if message and len(message) == 3:
             # message is a request
             if(sender not in entities):
-                cprint(message,"D")
+                logger.debug(message)
                 # message is a request:
                 # - evil_file is a fileupload (without sqli)
                 # - path_injection is a fileinclude
                 if "evil_file" in msg and "sqli" not in msg:
                     # file upload, get the parameters
-                    cprint(msg,"D")
+                    logger.debug(msg)
                     p = re.search("([a-zA-Z]*)\.evil_file",msg)
                     if p != None:
                         entry = {"attack":5,"params":{p.group(1):"evil_file"}}
@@ -76,7 +77,7 @@ def filesystem(msc_table,extended):
                 else:
                         if tag not in extended:
                             extended[tag] = {"attack":-1}
-                            cprint("normal request","D")
+                            logger.debug("normal request")
                             fs.append(["n",0])
             else:
                 # check eveytime there is a message from webapplication to
@@ -87,13 +88,13 @@ def filesystem(msc_table,extended):
                     prev_tag = prev_row[0]
                     prev_message = prev_row[1]
                     prev_msg = prev_message[2]
-                    cprint("qui","D")
-                    cprint(msg,"D")
+                    logger.debug("qui")
+                    logger.debug(msg)
                     read_file_regexp = re.search("f_file\((.*)\)",msg)
                     if read_file_regexp != None:
                         payload = read_file_regexp.group(1)
                         if payload in prev_msg:
-                            cprint("we have a possible traversal in ..","D")
-                            cprint(prev_tag,"D")
+                            logger.debug("we have a possible traversal in ..")
+                            logger.debug(prev_tag)
 
 

