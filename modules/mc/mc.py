@@ -44,7 +44,7 @@ def generate_msc(file_attack_trace,file_aslan_model):
             i = out.find("MESSAGES:")
             msc = out[i+9:]
             logger.info("Abstract Attack Trace found:")
-            print(msc)
+            logger.info(msc)
             return msc
         elif "SUMMARY NO_ATTACK_FOUND" in line:
             # no attack found, we don't need the MSC
