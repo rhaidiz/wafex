@@ -6,29 +6,29 @@ This module executes a trace
 
 
 import re
+import json
 import config
+import parser
+import atexit
 import requests
 import linecache
-import parser
-import modules.wrapper.sqlmap as sqlmap
-import json
 import threading
 import itertools
-import atexit
+import modules.wrapper.sqlmap as sqlmap
 
 from modules.logger import logger
 # disable warnings when making unverified HTTPS requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-from os import listdir
-from os.path import isfile, join, expanduser, dirname, realpath
+from modules.filesystem.traversalengine import execute_traversal
 from modules.sqli.sqli import sqlmap_parse_data_extracted
 from modules.sqli.sqli import sqli_init
 from modules.sqli.sqli import execute_sqlmap
 from modules.sqli.sqli import execute_bypass
 from modules.sqli.sqli import get_list_extracted_files
 from modules.http import execute_request
-from modules.filesystem.traversalengine import execute_traversal
+from os.path import isfile, join, expanduser, dirname, realpath
+from os import listdir
 
 
 # global request
@@ -134,6 +134,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 pages = msc_table[idx+1][1][2].split(".")
                 # baaad, we assume that position 0 is always the page we're looking for
                 check = concretization_data[pages[0]]
+
                 logger.debug(check)
                 if "path_injection" in message:
                     # means a not specified path injection
@@ -324,7 +325,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
                 if not found:
                     # we coulan'td procede in the trace, abort
-                    logger.info("Exploitation failed, abort trace execution")
+                    logger.warning("Exploitation failed, abort trace execution")
                     exit(0)
                 else:
                     logger.info("Exploitation succceded")
@@ -352,7 +353,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 for p in pages:
                         logger.debug(concretization_data[p])
                         if response == None or not( concretization_data[p] in response.text):
-                           logger.info("Exploitation failed, abort trace execution")
+                           logger.warning("Exploitation failed, abort trace execution")
                            exit(0)
                         else:
                            logger.info("Step succceded")

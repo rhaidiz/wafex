@@ -9,8 +9,8 @@ NOTE: unix only
 
 import requests
 
-from modules.http import execute_request
 from modules.logger import logger
+from modules.http import execute_request
 
 
 dots = "../"

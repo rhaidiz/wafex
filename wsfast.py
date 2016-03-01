@@ -4,18 +4,19 @@
 WSFAST main file
 """
 
-import atexit
-import shutil
-import argparse
-import os.path
-import config
 import glob
+import shutil
+import atexit
+import config
+import os.path
+import argparse
+import logging
 
 from modules.filesystem.fs import filesystem
 from modules.sqli.sqli import sqli
 from modules.engine import execute_attack
-from modules.mc import mc
 from modules.logger import logger
+from modules.mc import mc
 
 
 
@@ -44,7 +45,7 @@ def main():
         exit()
     # check if concretization file exists only if --mc-only hasn't been specified
     if args.c == None and not args.mc_only:
-        logger("Concretization file not specified")
+        logger.critical("Concretization file not specified")
         exit()
     elif not args.mc_only and not os.path.isfile(args.c):
         logger("Error: " + args.c + " file not found")
@@ -58,6 +59,11 @@ def main():
     # set global variables
     config.verbosity = args.verbose
     config.DEBUG = args.debug
+
+    if config.DEBUG:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
     config.proxy = args.proxy
     config.keep_cookie = args.keep_set_cookie
     if args.translator == "1.4.9":

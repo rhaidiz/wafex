@@ -5,10 +5,10 @@ This module provides parsing methods
 """
 
 import re
+import json
 import config
 import requests
 import linecache
-import json
 
 from modules.logger import logger
 
@@ -47,8 +47,10 @@ def filesystem(msc_table,extended):
                 # this is an indefined path injection, access a not specified file
                 # in the filesystem
                 elif "path_injection" in msg:
+                    # first check that we don't have some other attack on
+                    # that tag
                     p = re.search("([a-zA-Z]*)\.path_injection",msg)
-                    if p != None:
+                    if tag not in extended and p != None:
                         entry = {"attack":4,"params":{p.group(1):"?"}}
                         extended[tag] = entry
                         fs.append(["r",p.group(1)])

@@ -4,8 +4,8 @@
 This module executes an http request
 """
 
-import requests
 import config
+import requests
 
 from modules.logger import logger
 # parameters for configuring the requests maker:

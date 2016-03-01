@@ -5,19 +5,19 @@
 This module provides sql-injection extension
 """
 import re
+import json
 import config
 import requests
 import linecache
-import json
 import threading
-from os.path import expanduser
-from os.path import join
-from os.path import isfile
-from os import listdir
 
 from modules.logger import logger
 from modules.wrapper import sqlmap
 from modules.http import execute_request
+from os.path import expanduser
+from os.path import join
+from os.path import isfile
+from os import listdir
 
 # --==[ SQL Injection ]==--
 # 1: whenever I find a sqli somewhere, look for i -> webapp : tuple(of_the_same_sqli)
@@ -241,7 +241,7 @@ def execute_sqlmap(sqlmap_details):
     while not stopFlag.wait(5):
         r = sqlmap.get_status(task)
         if "terminated" in r:
-            logger.info(sqlmap.get_log(task))
+            logger.debug(sqlmap.get_log(task))
             logger.info("sqlmap analysisnalysis terminated")
             sqlmap_output = sqlmap.get_data(task)
             stopFlag.set()
