@@ -9,6 +9,7 @@ import json
 import config
 import requests
 import linecache
+import modules.wrapper.wfuzz as fuzzer
 
 from modules.logger import logger
 
@@ -98,5 +99,12 @@ def filesystem(msc_table,extended):
                         if payload in prev_msg:
                             logger.debug("we have a possible traversal in ..")
                             logger.debug(prev_tag)
-
-
+#def fuzzer_init(s,reg):
+#    
+#
+#def execute_fuzzer(fuzzer_details):
+#    # set default parameters
+#    fuzzer.set_param("--basic","regis:password")
+#    fuzzer.set_param("-o","json")
+#    fuzzer.set_param
+#

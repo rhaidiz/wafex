@@ -22,7 +22,6 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 from modules.filesystem.traversalengine import execute_traversal
 from modules.sqli.sqli import sqlmap_parse_data_extracted
-from modules.sqli.sqli import sqli_init
 from modules.sqli.sqli import execute_sqlmap
 from modules.sqli.sqli import execute_bypass
 from modules.sqli.sqli import get_list_extracted_files
@@ -115,20 +114,22 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             if not c:
                 exit(0)
 
+            # start populating the structure used performing attacks\requests
+            req = {}
+            req["url"] = concretization_data[tag]["url"]
+            req["method"] = concretization_data[tag]["method"]
+            # now create the params
+            params = {}
+            for k,v in concretization_data[tag]["params"].items():
+                tmp = v.split("=")
+                params[tmp[0]] = tmp[1]
+            req["params"] = params
+
             # filesystem inclusion
             if attack == 4:
                 logger.info("File reading attack")
                 logger.debug("execute attack on param")
                 logger.debug(params)
-                req = {}
-                req["url"] = concretization_data[tag]["url"]
-                req["method"] = concretization_data[tag]["method"]
-                # now create the params
-                params = {}
-                for k,v in concretization_data[tag]["params"].items():
-                    tmp = v.split("=")
-                    params[tmp[0]] = tmp[1]
-                req["params"] = params
 
                 # TODO: the next two lines are really bad
                 pages = msc_table[idx+1][1][2].split(".")
@@ -139,6 +140,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 if "path_injection" in message:
                     # means a not specified path injection
                     # check for all the defaults
+                    wfuzz.set_param()
+                    set_param("-w","prova.txt")
                     is_traversed = execute_traversal(s,req)
                 if is_traversed:
                     logger.info("Directory traversal succeeded")
@@ -156,9 +159,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',message).group(1)
                 real_file_to_retrieve = concretization_data["files"][abstract_file_to_retrieve]
                 logger.info("file to read: " + real_file_to_retrieve)
-                #_init = sqli_init(row,concretization_details,concretization_data,idx)
-                _init = sqli_init(tag,concretization_data,read=real_file_to_retrieve)
-                execute_sqlmap(_init)
+                req["read"] = real_file_to_retrieve
+                execute_sqlmap(req)
 
                 # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
                 # list extracted file content
@@ -171,9 +173,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 real_evil_file = concretization_data["files"][abstract_evil_file]
                 logger.debug("file to write: " + real_evil_file)
 
-                _init = sqli_init(tag,concretization_data,write=real_evil_file)
-                #_init = sqli_init(row,concretization_details,concretization_data,idx)
-                execute_sqlmap(_init)
+                req["write"] = real_evil_file
+                execute_sqlmap(req)
                 continue
 
 
@@ -198,12 +199,11 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                              tmp_table = concretization_data[tag2]["tables"][tmp_map]
                              extract.append(tmp_table)
 
-                   _init = sqli_init(tag,concretization_data,extract=extract)
-                   #_init = sqli_init(row,concretization_details,concretization_data,idx)
+                   req["extract"] = extract
                    # for the execution we need (url,method,params,data_to_extract)
                    # data_to_extract => table.column
                    # sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
-                   output = execute_sqlmap(_init)
+                   output = execute_sqlmap(req)
                    sqlmap_output = sqlmap_parse_data_extracted(output)
                    logger.debug(sqlmap_output)
                    if not sqlmap_output:

@@ -128,32 +128,6 @@ def sqlmap_parse_data_extracted(sqlmap_output):
     return extracted_values
 
 
-"""
-Return the initialization structur for executing sqlmap.
-"""
-def sqli_init(tag,concretization_data,read=None,extract=None,write=None):
-    logger.debug("sqli_init")
-    logger.debug(tag)
-
-    # we first deal with the concretization parameters needed for all initialization
-    sqli_init = {}
-    sqli_init["url"] = concretization_data[tag]["url"]
-    sqli_init["method"] = concretization_data[tag]["method"]
-    # now create the params
-    params = {}
-    for k,v in concretization_data[tag]["params"].items():
-        tmp = v.split("=")
-        params[tmp[0]] = tmp[1]
-    sqli_init["params"] = params
-
-    if read != None:
-        sqli_init["read"] = read
-    if extract != None:
-        sqli_init["extract"] = extract
-    if write != None:
-        sqli_init["write"] = write
-    return sqli_init
-
 
 def execute_sqlmap(sqlmap_details):
     global data_to_extract
@@ -163,7 +137,10 @@ def execute_sqlmap(sqlmap_details):
     params = sqlmap_details["params"]
 
     logger.info("run sqlmapapi.py")
-    sqlmap.run_api_server()
+    is_sqlmap_up = sqlmap.run_api_server()
+    if not is_sqlmap_up:
+        logger.critical("sqlmap server not running")
+        exit()
     task = sqlmap.new_task()
 
     # hardcoded configuration for the univr server

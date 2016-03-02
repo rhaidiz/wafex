@@ -40,6 +40,7 @@ def run_api_server():
         if "REST-JSON API server connected to IPC database" in line.decode('utf-8'):
             # the webserver is up and running
             return True
+    raise Exception()
     return False
 
 """ Kill sqlmap API process """
@@ -65,13 +66,17 @@ def set_option(option,value,task_id):
 
 """ Create a new task """
 def new_task():
+    #time.sleep(1)
     url = SQLMAP_BASE_URL+"/task/new"
-    r = requests.get(url)
     try:
+        r = requests.get(url)
         json_result = json.loads(r.text)
     except json.decoder.JSONDecodeError as e:
         logger.critical("JSON decoder error")
         exit()
+    except Exception as e:
+        logger.critical("something really bad happened")
+        logger.critical(e)
     if json_result['success'] == True:
         return json_result['taskid']
     else:
