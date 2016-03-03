@@ -259,6 +259,7 @@ def get_list_extracted_files(attack_domain):
         logger.critical("Aborting execution")
         exit(0)
     for f in files:
-        logger.info("content of file: " +join( __sqlmap_files_path, f))
-        txt = open(join(__sqlmap_files_path,f))
-        print(txt.read())
+        logger.info("files retrieved")
+        logger.info(join( __sqlmap_files_path, f))
+        #txt = open(join(__sqlmap_files_path,f))
+        #print(txt.read())

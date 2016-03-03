@@ -355,32 +355,22 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             elif attack == -1:
                 if "f_file" in message:
                     logger.info("exploiting file inclusion")
-                logger.debug(msc_table[idx][0])
-
-                req = {}
-                req["url"] = concretization_data[tag]["url"]
-                req["method"] = concretization_data[tag]["method"]
-                # now create the params
-                params = {}
-                for k,v in concretization_data[tag]["params"].items():
-                    tmp = v.split("=")
-                    # check if the value of parameters is ?
-                    params[tmp[0]] = tmp[1]
-                req["params"] = params
-                response = execute_request(s,req)
-                # check if reponse is valid
-                # by reading the constant from the msc response
-                pages = msc_table[idx+1][1][2].split(".")
-                logger.debug("check pages")
-                logger.debug(pages)
-                for p in pages:
-                        logger.debug(concretization_data[p])
-                        if response == None or not( concretization_data[p] in response.text):
-                           logger.warning("Exploitation failed, abort trace execution")
-                           exit(0)
-                        else:
-                           logger.info("Step succceded")
+                    logger.debug(req["params"])
+                    for k,v in req["params"].items():
+                        if v == "?":
+                            tmp = input("provide value for: " +k)
+                            req["params"][k] = tmp
+                    response = execute_request(s,req)
+                    found = __check_response(idx,msc_table,concretization_data,response)
+                else:
+                    logger.debug(msc_table[idx][0])
+                    response = execute_request(s,req)
+                    __check_response(idx,msc_table,concretization_data,response)
     logger.info("Trace ended")
+
+
+
+
 
 
 def __get_file_to_read(message, concretization_data):
