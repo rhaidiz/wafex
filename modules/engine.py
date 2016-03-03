@@ -14,19 +14,15 @@ import requests
 import linecache
 import threading
 import itertools
+import modules.sqli.sqli as sqli
+import modules.filesystem.fs as fs
 import modules.wrapper.sqlmap as sqlmap
 
 from modules.logger import logger
 # disable warnings when making unverified HTTPS requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-from modules.filesystem.traversalengine import execute_traversal
-from modules.filesystem.fs import payloadgenerator
-from modules.filesystem.fs import execute_wfuzz
-from modules.sqli.sqli import sqlmap_parse_data_extracted
-from modules.sqli.sqli import execute_sqlmap
-from modules.sqli.sqli import execute_bypass
-from modules.sqli.sqli import get_list_extracted_files
+
 from modules.http import execute_request
 from os.path import isfile, join, expanduser, dirname, realpath
 from os import listdir
@@ -141,11 +137,11 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
                 read_file, search = __get_file_to_read(message,concretization_data)
                 logger.debug("filesystem inclusion: \"" + read_file + "\" we're looking for: \"" + search + "\"" )
-                payloads = payloadgenerator(read_file)
+                payloads = fs.payloadgenerator(read_file)
                 logger.debug("payloads generated: " + str(payloads))
                 req["payloads"] = payloads
                 req["ss"] = search
-                wfuzz_output = execute_wfuzz(req)
+                wfuzz_output = fs.execute_wfuzz(req)
                 if len(wfuzz_output) > 0:
                     # we successfully found something, write it on files and show them to the
                     # user. Save the file in a local structure so that they can be used in further
@@ -184,11 +180,11 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 real_file_to_read, search = __get_file_to_read(message, concretization_data)
                 logger.info("file to read: " + str(real_file_to_read))
                 req["read"] = real_file_to_read
-                execute_sqlmap(req)
+                sqli.execute_sqlmap(req)
 
                 # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
                 # list extracted file content
-                get_list_extracted_files(attack_domain)
+                sqli.get_list_extracted_files(attack_domain)
                 continue
 
             # SQL-injection filesystem WRITE
@@ -198,7 +194,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 logger.debug("file to write: " + real_evil_file)
 
                 req["write"] = real_evil_file
-                execute_sqlmap(req)
+                sqli.execute_sqlmap(req)
                 continue
 
 
@@ -228,8 +224,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                    # for the execution we need (url,method,params,data_to_extract)
                    # data_to_extract => table.column
                    # sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
-                   output = execute_sqlmap(req)
-                   sqlmap_output = sqlmap_parse_data_extracted(output)
+                   output = sqli.execute_sqlmap(req)
+                   sqlmap_output = sqli.sqlmap_parse_data_extracted(output)
                    logger.debug(sqlmap_output)
                    if not sqlmap_output:
                        logger.warning("No data extracted from the database")
@@ -249,7 +245,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
                    pages = msc_table[idx+1][1][2].split(".")
                    check = concretization_data[pages[0]] # baaad, we assume that position 0 is always the page we're looking for
-                   is_bypassed = execute_bypass(s,req,check)
+                   is_bypassed = sqli.execute_bypass(s,req,check)
                    if is_bypassed:
                        logger.info("bypass succeeded")
                    else:
