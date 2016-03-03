@@ -50,7 +50,7 @@ def execute_request(s,request):
             r = s.post(url, data = params, verify=False, cookies=cookies,auth=('regis','password'))
 
     #r = requests.get(url, cookies=cookies, proxies=proxy, verify=False, auth=('regis','password'))
-    logger.debug(r.text)
+    # logger.debug(r.text)
     return r
 
 """

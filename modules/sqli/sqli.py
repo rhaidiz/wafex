@@ -55,7 +55,7 @@ def sqli(msc_table,extended):
             if (not message[0] == "webapplication") and "sqli" in message[len(message)-1] and not "tuple" in message[len(message)-1]:
                 prova = "9"
                 logger.debug("there is a sqli %s" % str(message))
-                # now we should check what kind of sqli isa
+                # now we should check what kind of sqli 
                 # is sqli is followed by evil_file, is a writing
                 if( "sqli.evil_file" in message[len(message)-1] ):
                     entry = {"attack":2}

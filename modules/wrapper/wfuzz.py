@@ -14,7 +14,7 @@ import requests
 import threading
 import subprocess
 
-#from modules.logger import logger
+from modules.logger import logger
 
 
 WFUZZ          = ["./wfuzz.py"]
@@ -38,10 +38,11 @@ Execute the fuzzer and get the json back
 def run_wfuzz(url):
     global WFUZZ
     WFUZZ.append(url)
-    p1 = subprocess.Popen(WFUZZ,cwd="../../wfuzz/",universal_newlines=True,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+    logger.debug(WFUZZ)
+    p1 = subprocess.Popen(WFUZZ,cwd="./wfuzz/",universal_newlines=True,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
     try:
         out, err = p1.communicate(timeout=10)
-        return out
+        return json.loads(out)
     except subprocess.TimeoutExpired:
         p1.kill()
         logger.critical("Error: wfuzz timed out.")

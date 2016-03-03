@@ -4,7 +4,7 @@
 This module executes a trace
 """
 
-
+import os
 import re
 import json
 import config
@@ -21,6 +21,8 @@ from modules.logger import logger
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 from modules.filesystem.traversalengine import execute_traversal
+from modules.filesystem.fs import payloadgenerator
+from modules.filesystem.fs import execute_wfuzz
 from modules.sqli.sqli import sqlmap_parse_data_extracted
 from modules.sqli.sqli import execute_sqlmap
 from modules.sqli.sqli import execute_bypass
@@ -58,8 +60,9 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
     mapping = None
     abstract_param_to_real = None
 
-    # sqlmap output
+    # web application's output
     sqlmap_output = None
+    files_output = []
 
     # request session object for performing subsequent HTTP requests
     s = requests.Session()
@@ -70,6 +73,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
     # load the concretization file
     with open(config.concretization,"r") as data_file:
          concretization_data = json.load(data_file)
+         data_file.close()
     attack_domain = concretization_data["domain"]
 
     __got_cookie = False
@@ -119,47 +123,67 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             req["url"] = concretization_data[tag]["url"]
             req["method"] = concretization_data[tag]["method"]
             # now create the params
-            params = {}
+            req_params = {}
             for k,v in concretization_data[tag]["params"].items():
                 tmp = v.split("=")
-                params[tmp[0]] = tmp[1]
-            req["params"] = params
+                req_params[tmp[0]] = tmp[1]
+            req["params"] = req_params
 
             # filesystem inclusion
             if attack == 4:
                 logger.info("File reading attack")
                 logger.debug("execute attack on param")
                 logger.debug(params)
-
                 # TODO: the next two lines are really bad
                 pages = msc_table[idx+1][1][2].split(".")
                 # baaad, we assume that position 0 is always the page we're looking for
                 check = concretization_data[pages[0]]
 
-                logger.debug(check)
-                if "path_injection" in message:
-                    # means a not specified path injection
-                    # check for all the defaults
-                    wfuzz.set_param()
-                    set_param("-w","prova.txt")
-                    is_traversed = execute_traversal(s,req)
-                if is_traversed:
-                    logger.info("Directory traversal succeeded")
-                    continue
+                read_file, search = __get_file_to_read(message,concretization_data)
+                logger.debug("filesystem inclusion: \"" + read_file + "\" we're looking for: \"" + search + "\"" )
+                payloads = payloadgenerator(read_file)
+                logger.debug("payloads generated: " + str(payloads))
+                req["payloads"] = payloads
+                req["ss"] = search
+                wfuzz_output = execute_wfuzz(req)
+                if len(wfuzz_output) > 0:
+                    # we successfully found something, write it on files and show them to the
+                    # user. Save the file in a local structure so that they can be used in further
+                    # requests
+                    logger.info("writing local files")
+                    for finc in wfuzz_output:
+                        url = finc["url"]
+                        # I should make a request and retrieve the page again
+                        req["url"] = url
+                        if len(finc["postdata"]) > 0:
+                            req["method"] = "post"
+                        req["params"] = {}
+                        for k,v in finc["postdata"].items():
+                            req["params"][k] = v
+                        response = execute_request(s,req)
+                        pathname = url.replace("http://","").replace("https://","").replace("/","_")
+                        filepath = os.path.join(".",pathname)
+                        f = open(filepath,"w")
+                        f.write(response.text)
+                        f.close()
+                        files_output.append(filepath)
+                        logger.info(filepath)
+                    logger.debug(files_output)
+                    logger.info("files have been written")
+                    pass
                 else:
-                    logger.info("Directory traversal error, file not found!")
-                    exit(0)
+                    # we couldn't find anything, abort execution
+                    logger.critical("File inclusion did not succeed")
+                    exit()
                 continue
 
 
             # SQL-injection filesystem READ
             if attack == 1:
                 logger.info("SQLI Filesystem read attack!")
-                # get the name of the file to retrieve
-                abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',message).group(1)
-                real_file_to_retrieve = concretization_data["files"][abstract_file_to_retrieve]
-                logger.info("file to read: " + real_file_to_retrieve)
-                req["read"] = real_file_to_retrieve
+                real_file_to_read = __get_file_to_read(message, concretization_data)
+                logger.info("file to read: " + real_file_to_read)
+                req["read"] = real_file_to_read
                 execute_sqlmap(req)
 
                 # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
@@ -181,6 +205,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             # SQL-injection
             if attack == 0:
                 # data extraction
+                logger.debug(params)
                 if params != None:
                    logger.info("Data extraction attack!")
 
@@ -359,6 +384,24 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                            logger.info("Step succceded")
     logger.info("Trace ended")
 
+
+def __get_file_to_read(message, concretization_data):
+    real_file_to_retrieve = ""
+    if "path_injection" in message:
+        # it means we prompt the user for the filename
+        real_file_to_retrieve = input("Which file yuo want to read?")
+    else:
+        # get the name of the file to retrieve from the concretization file
+        abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',message).group(1)
+        real_file_to_retrieve = concretization_data["files"][abstract_file_to_retrieve]
+        # and ask the user if it's ok
+        c = __ask_yes_no("The file that will be read is: " + real_file_to_retrieve + ", are you sure?")
+        if not c:
+            # ask the user which file to retrieve
+            real_file_to_retrieve = input("Which file you want to read?")
+    # TODO: ask what regexp we should be looking for
+    search = input("What are you looking for?")
+    return real_file_to_retrieve, search
 
 def __check_response(idx,msc_table,concretization_data,response):
     pages = msc_table[idx+1][1][2].split(".")

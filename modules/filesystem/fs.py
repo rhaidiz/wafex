@@ -3,7 +3,7 @@
 """
 This module provides parsing methods
 """
-
+import os
 import re
 import json
 import config
@@ -49,12 +49,13 @@ def filesystem(msc_table,extended):
                 # in the filesystem
                 elif "path_injection" in msg:
                     # first check that we don't have some other attack on
-                    # that tag
+                    # that tag, and if there is it should be -1 which means no attack
                     p = re.search("([a-zA-Z]*)\.path_injection",msg)
-                    if tag not in extended and p != None:
+                    if (tag not in extended and p != None) or (tag in extended and extended[tag]["attack"] == -1) :
                         entry = {"attack":4,"params":{p.group(1):"?"}}
                         extended[tag] = entry
                         fs.append(["r",p.group(1)])
+
                 elif "f_file(" in msg:
                     # there's a request that sends something function of file
                     abfilename = re.findall("f_file\(([a-zA-Z]*)\)",msg)
@@ -102,9 +103,37 @@ def filesystem(msc_table,extended):
 #def fuzzer_init(s,reg):
 #    
 #
-#def execute_fuzzer(fuzzer_details):
-#    # set default parameters
-#    fuzzer.set_param("--basic","regis:password")
-#    fuzzer.set_param("-o","json")
-#    fuzzer.set_param
-#
+def execute_wfuzz(fuzzer_details):
+    # set default parameters
+    fuzzer.set_param("--basic","regis:password")
+    fuzzer.set_param("-o","json")
+    fuzzer.set_param("--ss",fuzzer_details["ss"])
+    # we need to write a file with the payload to pass to wfuzz
+    f = open("wfuzz_payloads","w")
+    for p in fuzzer_details["payloads"]:
+        f.write(p+"\n")
+    f.close()
+    payloads_path = os.path.join(os.getcwd(),"wfuzz_payloads")
+    fuzzer.set_param("-w",payloads_path)
+    url = fuzzer_details["url"]
+    method = fuzzer_details["method"]
+    params = fuzzer_details["params"]
+    if method == "GET":
+        get_params = ""
+        for k,v in params.items():
+            if v == "?":
+                v = "FUZZ"
+            get_params = get_params + k + "=" + v + "&"
+    get_url = url+"?"+get_params
+    logger.debug(get_url)
+    out = fuzzer.run_wfuzz(get_url)
+    logger.debug(out)
+    return out
+
+"""
+Given a filename, this function returns a list of payloads that needs to be tested for performin
+a directory traversal attack.
+"""
+def payloadgenerator(fname,depth=6):
+    dots = "../"
+    return [dots*i+fname for i in range(depth) ]
