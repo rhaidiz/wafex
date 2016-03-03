@@ -181,8 +181,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             # SQL-injection filesystem READ
             if attack == 1:
                 logger.info("SQLI Filesystem read attack!")
-                real_file_to_read = __get_file_to_read(message, concretization_data)
-                logger.info("file to read: " + real_file_to_read)
+                real_file_to_read, search = __get_file_to_read(message, concretization_data)
+                logger.info("file to read: " + str(real_file_to_read))
                 req["read"] = real_file_to_read
                 execute_sqlmap(req)
 
@@ -357,6 +357,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
             # normal http request
             elif attack == -1:
+                if "f_file" in message:
+                    logger.info("exploiting file inclusion")
                 logger.debug(msc_table[idx][0])
 
                 req = {}

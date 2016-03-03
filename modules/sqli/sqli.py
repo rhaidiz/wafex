@@ -209,9 +209,9 @@ def execute_sqlmap(sqlmap_details):
 
     logger.info("sqlmap analysis started")
     sqlmap.start_scan(url,task)
-    logger.debug(url)
-    logger.debug(method)
-    logger.debug(params)
+    #logger.debug(url)
+    #logger.debug(method)
+    #logger.debug(params)
 
     stopFlag = threading.Event()
     sqlmap_output = ""
@@ -223,8 +223,8 @@ def execute_sqlmap(sqlmap_details):
             sqlmap_output = sqlmap.get_data(task)
             stopFlag.set()
         else:
-            logger.info("sqlmap analysis in progress ... ")
             logger.debug(sqlmap.get_log(task))
+            logger.info("sqlmap analysis in progress ... ")
 
     return sqlmap_output
 

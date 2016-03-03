@@ -62,7 +62,7 @@ def filesystem(msc_table,extended):
                     fs.append(["e",abfilename])
                     for idx2,row2 in enumerate(msc_table):
                         # when we find that f_file(?) is used, we should loop from the
-                        # beginning until now and check where we should retrieve this
+                        # beginning until this point and check where we should retrieve this
                         # file (which is completely different from SQLi)
                         tag2 = row2[0]
                         message2 = row2[1]
