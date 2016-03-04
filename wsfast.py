@@ -17,6 +17,7 @@ from modules.sqli.sqli import sqli
 from modules.engine import execute_attack
 from modules.logger import logger
 from modules.mc import mc
+from modules.modelmerger import merger
 
 
 
@@ -37,11 +38,11 @@ def main():
     requests.add_argument("--keep-set-cookie",help="Keep Set-Cookie header from response",action="store_true")
 
     args = cmd.parse_args()
-    load_model = args.model
+    webapp = args.model
 
     # check if model file exists
-    if not os.path.isfile(load_model):
-        logger.critical("Error: " + load_model + " file not found")
+    if not os.path.isfile(webapp):
+        logger.critical("Error: " + webapp + " file not found")
         exit()
     # check if concretization file exists only if --mc-only hasn't been specified
     if args.c == None and not args.mc_only:
@@ -71,6 +72,9 @@ def main():
     if args.translator == "1.3":
         mc.connector = config.CONNECTOR_1_3
 
+
+    # merge the files
+    load_model = merger(webapp)
 
     # first thing is to confert the ASLan++ model in ASLan
     file_aslan_model, err = mc.aslanpp2aslan(load_model)

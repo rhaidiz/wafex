@@ -76,6 +76,7 @@ Generate an ASLan file from an ASLan++ file.
 def aslanpp2aslan(file_aslanpp):
     #connector = config.connector
     # get the filename without extension
+    logger.debug(file_aslanpp)
     basename = os.path.splitext(os.path.basename(file_aslanpp))[0]
     translator_output_file = "tmp_"+basename+".aslan"
 
@@ -85,7 +86,7 @@ def aslanpp2aslan(file_aslanpp):
     p1 = subprocess.Popen(["java","-jar",connector,file_aslanpp,"-o",translator_output_file],universal_newlines=True,stderr=subprocess.PIPE)
 
     try:
-        out,err = p1.communicate(timeout=5)
+        out,err = p1.communicate(timeout=30)
     except subprocess.TimeoutExpired:
         p1.kill()
         logger.critical("Error: " + connector + " timed out.")
