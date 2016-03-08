@@ -17,7 +17,7 @@ from modules.sqli.sqli import sqli
 from modules.engine import execute_attack
 from modules.logger import logger
 from modules.mc import mc
-from modules.modelmerger import merger
+from modules.filemerger import merger
 
 
 
@@ -28,21 +28,22 @@ def main():
     cmd.add_argument("--c",metavar="concre_file",help="The concretization file, needed for executing the whole trace")
     cmd.add_argument("--debug",help="Print debug messages",action="store_true")
     cmd.add_argument("--mc-only",help="Run the model-checker only",action="store_true")
+    cmd.add_argument("--merger",help="Use the merger",action="store_true")
     cmd.add_argument("--verbose", help="Increase the output verbosity",action="store_true")
     translator = cmd.add_argument_group('Translator')
     translator_versions = ["1.4.1","1.4.9","1.3"]
     translator.add_argument("--translator",help="Specify a jar translator to use. Allowed values are "+", ".join(translator_versions)+". Default (1.4.1)", metavar='',choices=translator_versions)
 
-    requests = cmd.add_argument_group("Requests")
+    requests = cmd.add_argument_group("HTTP(S) options")
     requests.add_argument("--proxy",help="Use an HTTP proxy when executing requests")
     requests.add_argument("--keep-set-cookie",help="Keep Set-Cookie header from response",action="store_true")
 
     args = cmd.parse_args()
-    webapp = args.model
+    load_model = args.model
 
     # check if model file exists
-    if not os.path.isfile(webapp):
-        logger.critical("Error: " + webapp + " file not found")
+    if not os.path.isfile(load_model):
+        logger.critical("Error: " + load_model + " file not found")
         exit()
     # check if concretization file exists only if --mc-only hasn't been specified
     if args.c == None and not args.mc_only:
@@ -72,9 +73,12 @@ def main():
     if args.translator == "1.3":
         mc.connector = config.CONNECTOR_1_3
 
-
-    # merge the files
-    load_model = merger(webapp)
+    if args.merger:
+        base_model = "./models/new_models/base.aslan++"
+        webapp = load_model
+        load_model = "out.aslan++"
+        # merge the files
+        merger(webapp,base_model,load_model)
 
     # first thing is to confert the ASLan++ model in ASLan
     file_aslan_model, err = mc.aslanpp2aslan(load_model)
