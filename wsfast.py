@@ -28,7 +28,7 @@ def main():
     cmd.add_argument("--c",metavar="concre_file",help="The concretization file, needed for executing the whole trace")
     cmd.add_argument("--debug",help="Print debug messages",action="store_true")
     cmd.add_argument("--mc-only",help="Run the model-checker only",action="store_true")
-    cmd.add_argument("--merger",help="Use the merger",action="store_true")
+    cmd.add_argument("--merger",help="Use the specified file as a base file to merge with the given model",metavar="merger")
     cmd.add_argument("--verbose", help="Increase the output verbosity",action="store_true")
     translator = cmd.add_argument_group('Translator')
     translator_versions = ["1.4.1","1.4.9","1.3"]
@@ -74,7 +74,7 @@ def main():
         mc.connector = config.CONNECTOR_1_3
 
     if args.merger:
-        base_model = "./models/new_models/base.aslan++"
+        base_model = args.merger
         webapp = load_model
         load_model = "out.aslan++"
         # merge the files
