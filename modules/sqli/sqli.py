@@ -249,6 +249,7 @@ retrieve the list of files extracted by sqlmap which are stored in
 ~/.sqlmap/output/[domain]/files
 """
 def get_list_extracted_files(attack_domain):
+    files_extracted = []
     logger.debug("domain: " + attack_domain)
     __sqlmap_files_path = expanduser(join("~",".sqlmap","output",attack_domain,"files"))
 
@@ -259,7 +260,8 @@ def get_list_extracted_files(attack_domain):
         logger.critical("Aborting execution")
         exit(0)
     for f in files:
-        logger.info("files retrieved")
-        logger.info(join( __sqlmap_files_path, f))
+        tmp = join( __sqlmap_files_path, f)
+        files_extracted.append(tmp)
+    return files_extracted
         #txt = open(join(__sqlmap_files_path,f))
         #print(txt.read())

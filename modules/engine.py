@@ -184,7 +184,12 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
                 # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
                 # list extracted file content
-                sqli.get_list_extracted_files(attack_domain)
+                tmp_files = sqli.get_list_extracted_files(attack_domain)
+                logger.info("Extracted files")
+                __show_available_files(tmp_files, search)
+                files_output = files_output + tmp_files
+                # now I should check if the search param is somewhere 
+                # in the extracted file
                 continue
 
             # SQL-injection filesystem WRITE
@@ -354,7 +359,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             # normal http request
             elif attack == -1:
                 if "f_file" in message:
-                    logger.info("exploiting file inclusion")
+                    logger.info("Exploiting file-system vul")
+                    __ask_file_to_show(files_output)
                     logger.debug(req["params"])
                     for k,v in req["params"].items():
                         if v == "?":
@@ -362,6 +368,9 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                             req["params"][k] = tmp
                     response = execute_request(s,req)
                     found = __check_response(idx,msc_table,concretization_data,response)
+                    if not found:
+                        logger.critical("Response is not valid")
+                        exit(0)
                 else:
                     logger.debug(msc_table[idx][0])
                     response = execute_request(s,req)
@@ -370,6 +379,33 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
 
 
+def __ask_file_to_show(files):
+    selection = ""
+    while True:
+        i = 0
+        for f in files:
+            logger.info("%d) %s", i,f)
+            i = i + 1
+        selection = input("Which file you want to open? (d)one ")
+        if selection == "d":
+            return
+        try:
+            index = int(selection)
+            if index < len(files):
+                with open(files[int(selection)],"r") as f:
+                    for line in f:
+                        print(line.rstrip())
+            else:
+                raise Exception
+        except Exception:
+            logger.critical("invalid selection")
+
+def __show_available_files(files,search):
+    for f in files:
+        if search in open(f,"r").read():
+            logger.info("%s\t true" , f)
+        else:
+            logger.info("%s\t false", f)
 
 
 
