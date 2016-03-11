@@ -43,14 +43,16 @@ def main():
 
     # check if model file exists
     if not os.path.isfile(load_model):
-        logger.critical("Error: " + load_model + " file not found")
+        criticalMsg = "Error {} file not found".format(load_model)
+        logger.critical(criticalMsg)
         exit()
     # check if concretization file exists only if --mc-only hasn't been specified
     if args.c == None and not args.mc_only:
         logger.critical("Concretization file not specified")
         exit()
     elif not args.mc_only and not os.path.isfile(args.c):
-        logger("Error: " + args.c + " file not found")
+        criticalMsg = "Error: {} file not found".format(args.c)
+        logger.critical(criticalMsg)
         exit()
     elif not args.mc_only and args.c != None and  os.path.isfile(args.c):
         config.concretization = args.c

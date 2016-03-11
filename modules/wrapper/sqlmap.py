@@ -51,7 +51,8 @@ def kill():
 def set_option(option,value,task_id):
     url = SQLMAP_BASE_URL+"/option/"+task_id+"/set"
     params = { option : value }
-    logger.debug("task %s setting %s to  %s" %(task_id, option, value))
+    debugMsg = "task {} setting {} to {}".format(task_id, option, value)
+    logger.debug(debugMsg)
     r = requests.post(url,json=params)
     try:
         json_result = json.loads(r.text)
@@ -75,8 +76,8 @@ def new_task():
         logger.critical("JSON decoder error")
         exit()
     except Exception as e:
-        logger.critical("something really bad happened")
-        logger.critical(e)
+        criticalMsg = "Somethin bad happened {}".format(e)
+        logger.critical(criticalMsg)
     if json_result['success'] == True:
         return json_result['taskid']
     else:

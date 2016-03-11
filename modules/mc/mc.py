@@ -48,7 +48,7 @@ def generate_msc(file_attack_trace,file_aslan_model):
             return msc
         elif "SUMMARY NO_ATTACK_FOUND" in line:
             # no attack found, we don't need the MSC
-            logger.info("NO ATTACK FOUND")
+            logger.warning("NO ATTACK FOUND")
             return ""
 
 """
@@ -76,12 +76,14 @@ Generate an ASLan file from an ASLan++ file.
 def aslanpp2aslan(file_aslanpp):
     #connector = config.connector
     # get the filename without extension
-    logger.debug(file_aslanpp)
+    debugMsg = "file aslanpp: {}".format(file_aslanpp)
+    logger.debug(debugMsg)
     basename = os.path.splitext(os.path.basename(file_aslanpp))[0]
     translator_output_file = "tmp_"+basename+".aslan"
 
     logger.info("Generating ASlan model")
-    logger.debug(connector + " on "+file_aslanpp + " output file " + translator_output_file)
+    debugMsg = "{} on {} out-file {}".format(connector,file_aslanpp,translator_output_file)
+    logger.debug(debugMsg)
 
     p1 = subprocess.Popen(["java","-jar",connector,file_aslanpp,"-o",translator_output_file],universal_newlines=True,stderr=subprocess.PIPE)
 
@@ -89,7 +91,8 @@ def aslanpp2aslan(file_aslanpp):
         out,err = p1.communicate(timeout=30)
     except subprocess.TimeoutExpired:
         p1.kill()
-        logger.critical("Error: " + connector + " timed out.")
+        criticalMsg = "Error: {} timed out."
+        logger.critical(criticalMsg)
         exit()
 
 
@@ -131,18 +134,16 @@ def parse_msc(aat):
             #    tmp_response = response_regexp.match(line)
             if tmp_request:
                 # we have found a request
-                logger.debug("request found")
-                logger.debug(tmp_request)
+                debugMsg = "request found: {}".format(tmp_request)
+                logger.debug(debugMsg)
                 result.append((tag + tmp_request.group(4),(tmp_request.group(1),tmp_request.group(2),tmp_request.group(3))))
             else:
                 tmp_response = response_regexp.match(line)
                 if tmp_response:
                     # we have found a response
-                    logger.debug("response found")
-                    logger.debug(tmp_response)
+                    debugMsg = "response found: {}".format(tmp_request)
+                    logger.debug(debugMsg)
                     result.append((tag,(tmp_response.group(1),tmp_response.group(2),tmp_response.group(3))))
-    if config.DEBUG:
-        logger.debug(__name__ + " result")
-        logger.debug(result)
-        logger.debug("################")
+    logger.debug(result)
+    logger.debug("################")
     return result

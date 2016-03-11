@@ -59,6 +59,8 @@ def filesystem(msc_table,extended):
                 elif "f_file(" in msg:
                     # there's a request that sends something function of file
                     abfilename = re.findall("f_file\(([a-zA-Z]*)\)",msg)
+                    entry = {"attack":7}
+                    extended[tag] = entry
                     fs.append(["e",abfilename])
                     for idx2,row2 in enumerate(msc_table):
                         # when we find that f_file(?) is used, we should loop from the
@@ -92,17 +94,14 @@ def filesystem(msc_table,extended):
                     prev_tag = prev_row[0]
                     prev_message = prev_row[1]
                     prev_msg = prev_message[2]
-                    logger.debug("qui")
-                    logger.debug(msg)
                     read_file_regexp = re.search("f_file\((.*)\)",msg)
                     if read_file_regexp != None:
                         payload = read_file_regexp.group(1)
                         if payload in prev_msg:
-                            logger.debug("we have a possible traversal in ..")
-                            logger.debug(prev_tag)
-#def fuzzer_init(s,reg):
-#    
-#
+                            debugMsg = "we have a possible traversal in {}".format(prev_tag)
+                            logger.debug(debugMsg)
+
+
 def execute_wfuzz(fuzzer_details):
     # set default parameters
     fuzzer.set_param("--basic","regis:password")
@@ -124,10 +123,9 @@ def execute_wfuzz(fuzzer_details):
             if v == "?":
                 v = "FUZZ"
             get_params = get_params + k + "=" + v + "&"
+    #TODO: missing the POST method branch
     get_url = url+"?"+get_params
-    logger.debug(get_url)
     out = fuzzer.run_wfuzz(get_url)
-    logger.debug(out)
     return out
 
 """

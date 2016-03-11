@@ -38,7 +38,8 @@ Execute the fuzzer and get the json back
 def run_wfuzz(url):
     global WFUZZ
     WFUZZ.append(url)
-    logger.debug(WFUZZ)
+    debugMsg = "WFUZZ {}".format(WFUZZ)
+    logger.debug(debugMsg)
     p1 = subprocess.Popen(WFUZZ,cwd="./wfuzz/",universal_newlines=True,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
     try:
         out, err = p1.communicate(timeout=10)

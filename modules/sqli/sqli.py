@@ -47,14 +47,16 @@ def sqli(msc_table,extended):
     sqli = []
     injection_point = ""
     for idx, message in enumerate(msc_table):
-        logger.debug(message)
+        debugMsg = "message: {}".format(message)
+        logger.debug(debugMsg)
         tag = message[0]
         message = message[1]
         if message and len(message) == 3:
             # read message and check if it's a request and require an SQLi
             if (not message[0] == "webapplication") and "sqli" in message[len(message)-1] and not "tuple" in message[len(message)-1]:
                 prova = "9"
-                logger.debug("there is a sqli %s" % str(message))
+                debugMsg = "there is a sqli in {}".format(message)
+                logger.debug(debugMsg)
                 # now we should check what kind of sqli 
                 # is sqli is followed by evil_file, is a writing
                 if( "sqli.evil_file" in message[len(message)-1] ):
@@ -64,9 +66,7 @@ def sqli(msc_table,extended):
                 # if is not a writing we check if sqli is followed by
                 # anything that starts with a lower-case letter
                 elif( re.search('sqli\.[a-z]',message[len(message)-1]) != None ):
-                    logger.debug(message[len(message)-1])
                     par = re.search('([a-zA-Z]*)\.sqli',message[len(message)-1])
-
                     entry = {"attack":1,"params":{par.group(1)}}
                     extended[tag] = entry
                     sqli.append(["r",0])
@@ -83,9 +83,12 @@ def sqli(msc_table,extended):
                 param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
                 params = param_regexp.findall(message[len(message)-1])
                 logger.debug("exploiting sqli here")
-                logger.debug("Message: %s" % str(message))
-                logger.debug("Params: %s" % str(params))
-                logger.debug("Tag: %s" % str(tag))
+                debugMsg = "Message: {}".format(message)
+                logger.debug(debugMsg)
+                debugMsg = "Params: {}".format(params)
+                logger.debug(debugMsg)
+                debugMsg = "Tag: {}".format(tag)
+                logger.debug(debugMsg)
                 logger.debug("--------------------")
                 # create a multiple array with params from different lines
                 t = msc_table[injection_point][0]
@@ -97,20 +100,23 @@ def sqli(msc_table,extended):
                 if tag not in extended:
                     extended[tag] = {"attack":-1}
                     sqli.append(["n",0])
-    logger.debug("%s" % str(sqli))
     return sqli
 
 
 def sqlmap_parse_data_extracted(sqlmap_output):
     global data_to_extract
     # Let's parse the data extracted
-    logger.debug(sqlmap_output)
+    debugMsg = "sqlmap output {}".format(sqlmap_output)
+    logger.debug(debugMsg)
     extracted_values = {}
-    logger.debug(data_to_extract)
+    debugMsg = "data to extract {}".format(data_to_extract)
+    logger.debug(debugMsg)
     for tblcol in data_to_extract:
-        logger.debug(tblcol)
+        debugMsg = "tblcol: ".format(tblcol)
+        logger.debug(debugMsg)
         tbl_list = tblcol.split(".")
-        logger.debug(tbl_list[1])
+        debugMsg = "tbl_list[1]: ".format(tbl_list[1])
+        logger.debug(debugMsg)
         tmp_table = tbl_list[0]
         tmp_column = tbl_list[1]
         try:
@@ -131,7 +137,6 @@ def sqlmap_parse_data_extracted(sqlmap_output):
 
 def execute_sqlmap(sqlmap_details):
     global data_to_extract
-    logger.debug(sqlmap_details)
     url = sqlmap_details["url"]
     method = sqlmap_details["method"]
     params = sqlmap_details["params"]
@@ -154,8 +159,8 @@ def execute_sqlmap(sqlmap_details):
         c = ""
         for k,v in config.cookies.items():
             c = c + k + "=" + v + ";"
-        logger.debug("sqlmap with cookie")
-        logger.debug(c)
+        debugMsg = "sqlmap with cookie {}".format(c)
+        logger.debug(debugMsg)
         sqlmap.set_option("cookie",c,task)
 
     url_params = ""
@@ -171,14 +176,12 @@ def execute_sqlmap(sqlmap_details):
 
     try:
         data_to_extract = sqlmap_details["extract"]
-        logger.debug(data_to_extract)
         sqlmap.set_option("dumpTable","true",task)
         # set data extraction only if we have data to extract
         col = ""
         tbl = ""
         for tblcol in data_to_extract:
             tbl_list = tblcol.split(".")
-            logger.debug(tbl_list[0])
             # TODO: in here we're basically overwriting the table name
             # whenever we find a new one
             tbl = tbl_list[0]
@@ -199,19 +202,14 @@ def execute_sqlmap(sqlmap_details):
         if not isfile(file_to_write):
             debug.critical("Error: evil file not found")
             exit()
-        logger.debug(dirname(realpath(__file__)))
         sqlmap.set_option("wFile",join(".",file_to_write),task)
-        logger.debug("In which remote path you want to try to upload the file?")
-        path = input()
+        path = input("Where to upload the file?")
         sqlmap.set_option("dFile",path,task)
     except KeyError:
         pass
 
     logger.info("sqlmap analysis started")
     sqlmap.start_scan(url,task)
-    #logger.debug(url)
-    #logger.debug(method)
-    #logger.debug(params)
 
     stopFlag = threading.Event()
     sqlmap_output = ""
@@ -250,13 +248,15 @@ retrieve the list of files extracted by sqlmap which are stored in
 """
 def get_list_extracted_files(attack_domain):
     files_extracted = []
-    logger.debug("domain: " + attack_domain)
+    debugMsg = "domain {}".format(attack_domain)
+    logger.debug(debugMsg)
     __sqlmap_files_path = expanduser(join("~",".sqlmap","output",attack_domain,"files"))
 
     try:
         files = [f for f in listdir(__sqlmap_files_path) if isfile(join(__sqlmap_files_path,f))]
     except FileNotFoundError:
-        logger.critical("File not found! " + __sqlmap_files_path)
+        criticalMsg = "File not found {}".format(__sqlmap_files_path) 
+        logger.critical(criticalMsg)
         logger.critical("Aborting execution")
         exit(0)
     for f in files:

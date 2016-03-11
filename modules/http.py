@@ -30,10 +30,14 @@ def execute_request(s,request):
     #cookies = {'8c7a5a8dc980f43a35da380d188606dd': 'my-app/0.0.1'}
 
     logger.debug("Execute request")
-    logger.debug(url)
-    logger.debug(method)
-    logger.debug(params)
-    logger.debug(cookies)
+    debugMsg = "url: {}".format(url)
+    logger.debug(debugMsg)
+    debugMsg = "method: {}".format(method)
+    logger.debug(debugMsg)
+    debugMsg = "params: {}".format(params)
+    logger.debug(debugMsg)
+    debugMsg = "cookies: {}".format(cookies)
+    logger.debug(debugMsg)
     #url = 'https://157.27.244.25/chained'
     if config.proxy != None:
         proxies = {"http" : "http://"+config.proxy,"https":"https://"+config.proxy}
@@ -49,8 +53,6 @@ def execute_request(s,request):
         else:
             r = s.post(url, data = params, verify=False, cookies=cookies,auth=('regis','password'))
 
-    #r = requests.get(url, cookies=cookies, proxies=proxy, verify=False, auth=('regis','password'))
-    # logger.debug(r.text)
     return r
 
 """
