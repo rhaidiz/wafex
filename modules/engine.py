@@ -111,8 +111,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
 
             # continue?
-            logger.info(row[1])
-            c = __ask_yes_no("Executing step, continue?")
+            infoMsg = "Executing {}\ncontinue?".format(row[1])
+            c = __ask_yes_no(infoMsg)
             if not c:
                 exit(0)
 
@@ -129,10 +129,11 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
             # filesystem inclusion
             if attack == 4:
-                infoMsg = "File reading attack"
-                logger.info(infoMsg)
+                logger.info("Perform file inclusion attack!")
+
                 debugMsg = "execute attack on param {}".format(params)
                 logger.debug(debugMsg)
+
                 # TODO: the next two lines are really bad
                 pages = msc_table[idx+1][1][2].split(".")
                 # baaad, we assume that position 0 is always the page we're looking for
@@ -151,15 +152,15 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                     # we successfully found something, write it on files and show them to the
                     # user. Save the file in a local structure so that they can be used in further
                     # requests
-                    logger.info("writing local files")
-                    for finc in wfuzz_output:
-                        url = finc["url"]
+                    logger.info("saving extracted files")
+                    for page in wfuzz_output:
+                        url = page["url"]
                         # I should make a request and retrieve the page again
                         req["url"] = url
-                        if len(finc["postdata"]) > 0:
+                        if len(page["postdata"]) > 0:
                             req["method"] = "post"
                         req["params"] = {}
-                        for k,v in finc["postdata"].items():
+                        for k,v in page["postdata"].items():
                             req["params"][k] = v
                         response = execute_request(s,req)
                         pathname = url.replace("http://","").replace("https://","").replace("/","_")
@@ -170,8 +171,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                         files_output.append(filepath)
                         logger.info(filepath)
                     logger.debug(files_output)
-                    logger.info("files have been written")
-                    pass
+                    logger.info("Files have been saved")
                 else:
                     # we couldn't find anything, abort execution
                     logger.critical("File inclusion did not succeed")
@@ -181,25 +181,31 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
             # SQL-injection filesystem READ
             if attack == 1:
-                logger.info("SQLI Filesystem read attack!")
+                logger.info("Perform SQLi attack for file reading!")
+
                 real_file_to_read, search = __get_file_to_read(message, concretization_data)
+
                 infoMsg = "file to read: {}".format(real_file_to_read)
                 logger.info(infoMsg)
+
                 req["read"] = real_file_to_read
                 sqli.execute_sqlmap(req)
 
                 # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
                 # list extracted file content
                 tmp_files = sqli.get_list_extracted_files(attack_domain)
-                logger.info("Extracted files")
-                __show_available_files(tmp_files, search)
-                files_output = files_output + tmp_files
-                # now I should check if the search param is somewhere 
-                # in the extracted file
+                logger.info("The attack performed the following result:")
+                
+                for f in tmp_files:
+                    if search in open(f,"r").read():
+                        infoMsg = "File {} contains the {} string".format(f,search)
+                        logger.info(infoMsg)
+                        files_output = files_output + f
                 continue
 
             # SQL-injection filesystem WRITE
             if attack == 2:
+                logger.info("Perform SQLi attack for file writing!")
                 abstract_evil_file = re.search(r'sqli\.([a-zA-Z_]*)',request_message).group(1)
                 real_evil_file = concretization_data["files"][abstract_evil_file]
                 debugMsg = "file to write: {}".format(readl_evil_file)
@@ -215,7 +221,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 # data extraction
                 logger.debug(params)
                 if params != None:
-                   logger.info("Data extraction attack!")
+                   logger.info("Perform data extraction attack!")
 
                    # get the table and columns to be enumarated
                    extract = []
@@ -244,7 +250,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                        exit()
                 # authentication bypass
                 else:
-                   logger.info("Authentication bypass attack!")
+                   logger.info("Perform authentication bypass attack!")
                    req = {}
                    req["url"] = concretization_data[tag]["url"]
                    req["method"] = concretization_data[tag]["method"]
@@ -263,11 +269,12 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                    else:
                        logger.info("bypass error, abort execution")
                        exit(0)
+                continue
 
-            # exploit the sqli, which is a normal request 
+            # exploit the sqli as a normal request 
             # where we use the result from sqlmap
-            elif attack == 6:
-                logger.debug("exploit sqli here")
+            if attack == 6:
+                logger.info("Exploit SQLi attack")
 
                 # initialize base request
                 req = {}
@@ -378,25 +385,29 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                     logger.warning("Exploitation failed, abort trace execution")
                     exit(0)
                 logger.info("Exploitation succceded")
+                continue
 
-
-            # exploit filesystem content
-            elif attack == -7:
-                logger.info("Exploiting file-system content")
+            # exploit filesystem attacks
+            if attack == 7:
+                logger.info("Exploit file-system")
                 __ask_file_to_show(files_output)
                 logger.debug(req["params"])
                 for k,v in req["params"].items():
                     if v == "?":
-                        tmp = input("provide value for: " +k)
-                        req["params"][k] = tmp
+                        inputMsg = "Provide value for: {}\n".format(k)
+                        new_value = input(inputMsg)
+                        req["params"][k] = new_value
                 response = execute_request(s,req)
                 found = __check_response(idx,msc_table,concretization_data,response)
                 if not found:
                     logger.warning("Exploitation failed, abort trace execution")
                     exit(0)
+                continue
 
             # normal http request
-            elif attack == -1:
+            # we consider Forced browsing e File upload as normal requests
+            if attack == -1:
+                logger.info("Perform normal request")
                 logger.debug(msc_table[idx][0])
                 response = execute_request(s,req)
                 found = __check_response(idx,msc_table,concretization_data,response)
@@ -404,6 +415,9 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                     logger.critical("Response is not valid")
                     exit(0)
                 logger.info("Step succeeded")
+                continue
+
+    # end loop over the msc
     logger.info("Trace ended successfully")
 
 

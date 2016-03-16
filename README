@@ -9,10 +9,17 @@ Supported features:
  - sqlmap integration
  - sql injection bypass
  - header fields in the model
- - full trace execution with data extraction amd (basic) authentication bypass
+ - execution of normal requests
+ - SQLi of data extraction
+ - exploitation of data extracted
+ - SQLi for auth bypass (basic payloads)
+ - SQLi for file reading
+ - file inclusion attacks
+ - expoitation of file content extracted
 
-Partially supported
- - filesystem attacks
+To verify:
+ - SQLi for file writing
+ - filesystem attack implementation
 
 Not yet supported:
  - GUI
