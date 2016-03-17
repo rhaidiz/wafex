@@ -409,6 +409,11 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             if attack == -1:
                 logger.info("Perform normal request")
                 logger.debug(msc_table[idx][0])
+                for k,v in req["params"].items():
+                    if v == "?":
+                        inputMsg = "Provide value for: {}\n".format(k)
+                        new_value = input(inputMsg)
+                        req["params"][k] = new_value
                 response = execute_request(s,req)
                 found = __check_response(idx,msc_table,concretization_data,response)
                 if not found:
@@ -472,17 +477,16 @@ def __get_file_to_read(message, concretization_data):
 
 def __check_response(idx,msc_table,concretization_data,response):
     pages = msc_table[idx+1][1][2].split(".")
-    for p in pages:
-           logger.debug(concretization_data[p])
-           try:
-                   if response != None and concretization_data[p] in response.text:
-                       logger.debug("valid request")
-                       logger.debug(concretization_data[p])
-                       return True
-                       break;
-           except Exception:
-                    return False
-                    logger.debug("NO ")
+    p = pages[0]
+    logger.debug(concretization_data[p])
+    try:
+            if response != None and concretization_data[p] in response.text:
+                logger.debug("valid request")
+                logger.debug(concretization_data[p])
+                return True
+    except Exception:
+             return False
+             logger.debug("NO ")
     return False
 
 
