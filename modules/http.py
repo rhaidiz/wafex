@@ -28,6 +28,11 @@ def execute_request(s,request):
     except KeyError:
         cookies = []
     #cookies = {'8c7a5a8dc980f43a35da380d188606dd': 'my-app/0.0.1'}
+    try:
+        files = request["files"]
+    except KeyError:
+        files = {}
+
 
     logger.debug("Execute request")
     debugMsg = "url: {}".format(url)
@@ -37,6 +42,8 @@ def execute_request(s,request):
     debugMsg = "params: {}".format(params)
     logger.debug(debugMsg)
     debugMsg = "cookies: {}".format(cookies)
+    logger.debug(debugMsg)
+    debugMsg = "files: {}".format(files)
     logger.debug(debugMsg)
     #url = 'https://157.27.244.25/chained'
     if config.proxy != None:
@@ -49,9 +56,9 @@ def execute_request(s,request):
             r = s.get(url,params=params, verify=False, cookies=cookies,auth=('regis','password'))
     else:
         if config.proxy != None:
-            r = s.post(url,proxies=proxies, data = params, cookies=cookies,verify=False, auth=('regis','password'))
+            r = s.post(url,proxies=proxies, data = params, files=files, cookies=cookies,verify=False, auth=('regis','password'))
         else:
-            r = s.post(url, data = params, verify=False, cookies=cookies,auth=('regis','password'))
+            r = s.post(url, data = params, verify=False, files=files, cookies=cookies,auth=('regis','password'))
 
     return r
 

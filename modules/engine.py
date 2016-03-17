@@ -42,7 +42,7 @@ def exitcleanup():
     logger.debug(debugMsg)
 
 # takes an attack trace and an extension matrix, and execute the attack
-def execute_attack(msc_table,concretization_json,file_aslanpp):
+def execute_attack(msc_table,msc_table_info,file_aslanpp):
     global s
     global attack_domain
     logger.info("Executing the attack trace")
@@ -86,11 +86,11 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             message = m[2]
             debugMsg = "Message: {}".format(message)
             logger.debug(debugMsg)
-            concretization_details = concretization_json[tag]
-            attack = concretization_details["attack"]
+            attack_details = msc_table_info[tag]
+            attack = attack_details["attack"]
             params = None
             try:
-                params = concretization_details["params"]
+                params = attack_details["params"]
             except KeyError:
                 pass
 
@@ -123,8 +123,8 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
             # now create the params
             req_params = {}
             for k,v in concretization_data[tag]["params"].items():
-                tmp = v.split("=")
-                req_params[tmp[0]] = tmp[1]
+                K,V = v.split("=")
+                req_params[K] = V
             req["params"] = req_params
 
             # filesystem inclusion
@@ -195,7 +195,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 # list extracted file content
                 tmp_files = sqli.get_list_extracted_files(attack_domain)
                 logger.info("The attack performed the following result:")
-                
+
                 for f in tmp_files:
                     if search in open(f,"r").read():
                         infoMsg = "File {} contains the {} string".format(f,search)
@@ -225,7 +225,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
 
                    # get the table and columns to be enumarated
                    extract = []
-                   exploitations = concretization_details["params"]
+                   exploitations = attack_details["params"]
                    debugMsg = "Exploitations: {}".format(exploitations)
                    logger.debug(debugMsg)
                    for i,tag2 in enumerate(exploitations):
@@ -271,7 +271,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                        exit(0)
                 continue
 
-            # exploit the sqli as a normal request 
+            # exploit the sqli as a normal request
             # where we use the result from sqlmap
             if attack == 6:
                 logger.info("Exploit SQLi attack")
@@ -281,7 +281,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 req["url"] = concretization_data[tag]["url"]
                 req["method"] = concretization_data[tag]["method"]
                 req_params = []
-                # generate all possible combination of parameters 
+                # generate all possible combination of parameters
                 try:
                     concretization_params = concretization_data[tag]["params"]
                     req_params = []
@@ -308,7 +308,7 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                 except KeyError:
                     logger.warning("no parameters defined in the concretization file")
 
-                # generate all possible combination of cookies 
+                # generate all possible combination of cookies
                 req_cookies = []
                 try:
                     concretization_cookies = concretization_data[tag]["cookies"]
@@ -386,6 +386,27 @@ def execute_attack(msc_table,concretization_json,file_aslanpp):
                     exit(0)
                 logger.info("Exploitation succceded")
                 continue
+
+            # exploit a file upload
+            if attack == 5:
+                exp_params = attack_details["params"]
+                files = {}
+                for k,v in exp_params.items():
+                    try:
+                        real_pair = concretization_data[tag]["params"][k]
+                    except KeyError:
+                        criticalMsg = "Concretization file error, key {} not found in {}".format(k,tag)
+                        logger.critical(criticalMsg)
+                        exit(0)
+                    real_k,real_v = real_pair.split("=")
+                    del req["params"][real_k]
+                    # select which payload to upload
+                    if v == "evil_file":
+                        files[real_k] = open("evil_file.txt","rb")
+                req["files"] = files
+                response = execute_request(s,req)
+
+                logger.debug(response)
 
             # exploit filesystem attacks
             if attack == 7:
