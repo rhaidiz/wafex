@@ -13,3 +13,4 @@ CONNECTOR_1_4_1 = "modules/connector/aslanpp-connector-1.4.1.jar"
 CONNECTOR_1_4_9 = "modules/connector/aslanpp-connector.jar"
 CONNECTOR_1_3 = "modules/connector/aslanpp-connector-1.3.jar"
 
+receiver_entities = {"webapplication","filesystem","database","<webapplication>","<filesystem>","<database>"}

@@ -46,60 +46,64 @@ def sqli(msc_table,extended):
     logger.debug("Starting extend_trace_sqli")
     sqli = []
     injection_point = ""
-    for idx, message in enumerate(msc_table):
-        debugMsg = "message: {}".format(message)
+    for idx, row in enumerate(msc_table):
+        debugMsg = "row: {}".format(row)
         logger.debug(debugMsg)
-        tag = message[0]
-        message = message[1]
-        if message and len(message) == 3:
-            # read message and check if it's a request and require an SQLi
-            if (not message[0] == "webapplication") and "sqli" in message[len(message)-1] and not "tuple" in message[len(message)-1]:
-                prova = "9"
-                debugMsg = "there is a sqli in {}".format(message)
-                logger.debug(debugMsg)
-                # now we should check what kind of sqli 
-                # is sqli is followed by evil_file, is a writing
-                if( "sqli.evil_file" in message[len(message)-1] ):
-                    entry = {"attack":2}
-                    extended[tag] = entry
-                    sqli.append(["w",0])
-                # if is not a writing we check if sqli is followed by
-                # anything that starts with a lower-case letter
-                elif( re.search('sqli\.[a-z]',message[len(message)-1]) != None ):
-                    par = re.search('([a-zA-Z]*)\.sqli',message[len(message)-1])
-                    entry = {"attack":1,"params":{par.group(1)}}
-                    extended[tag] = entry
-                    sqli.append(["r",0])
-                # otherwise is "standard" sqli
-                else:
-                    entry = {"attack":0}
-                    extended[tag] = entry
-                    sqli.append(["a",[]])
-                injection_point = idx
-            # we are exploiting a sqli, find the column that should be retrieved
-            # .([a-z]*?).tuple
-            elif "webapplication" in message[1] and "tuple" in message[len(message)-1] and "sqli" in message[len(message)-1]:
-                #param_regexp = re.compile(r'(.*?).tuple\(')
-                param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
-                params = param_regexp.findall(message[len(message)-1])
-                logger.debug("exploiting sqli here")
-                debugMsg = "Message: {}".format(message)
-                logger.debug(debugMsg)
-                debugMsg = "Params: {}".format(params)
-                logger.debug(debugMsg)
-                debugMsg = "Tag: {}".format(tag)
-                logger.debug(debugMsg)
-                logger.debug("--------------------")
-                # create a multiple array with params from different lines
-                t = msc_table[injection_point][0]
-                extended[t]["params"] = {tag:params}
-                extended[tag] = {"attack": 6}
-                sqli[injection_point][1].append((tag,params))
-                sqli.append(["e",injection_point])
+        tag = row[0]
+        step = row[1]
+        sender = step[0]
+        receiver = step[1]
+        msg = step[2]
+        
+        # if message and len(message) == 3:
+        # read message and check if it's a request and require an SQLi
+        if sender not in config.receiver_entities and "sqli" in msg and "tuple" not in msg:
+            prova = "9"
+            debugMsg = "there is a sqli in {}".format(msg)
+            logger.debug(debugMsg)
+            # now we should check what kind of sqli 
+            # is sqli is followed by evil_file, is a writing
+            if( "sqli.evil_file" in msg ):
+                entry = {"attack":2}
+                extended[tag] = entry
+                sqli.append(["w",0])
+            # if is not a writing we check if sqli is followed by
+            # anything that starts with a lower-case letter
+            elif( re.search('sqli\.[a-z]',msg) != None ):
+                par = re.search('([a-zA-Z]*)\.sqli',msg)
+                entry = {"attack":1,"params":{par.group(1)}}
+                extended[tag] = entry
+                sqli.append(["r",0])
+            # otherwise is data extraction or auth bypass sqli
             else:
-                if tag not in extended:
-                    extended[tag] = {"attack":-1}
-                    sqli.append(["n",0])
+                entry = {"attack":0}
+                extended[tag] = entry
+                sqli.append(["a",[]])
+            injection_point = idx
+        elif(sender not in config.receiver_entities):
+            if tag not in extended:
+                extended[tag] = {"attack":-1}
+                sqli.append(["n",0])
+        # we are exploiting a sqli, find the column that should be retrieved
+        # .([a-z]*?).tuple
+        elif "webapplication" in receiver and "tuple" in msg and "sqli" in msg:
+            #param_regexp = re.compile(r'(.*?).tuple\(')
+            param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
+            params = param_regexp.findall(msg)
+            logger.debug("exploiting sqli here")
+            debugMsg = "Message: {}".format(msg)
+            logger.debug(debugMsg)
+            debugMsg = "Params: {}".format(params)
+            logger.debug(debugMsg)
+            debugMsg = "Tag: {}".format(tag)
+            logger.debug(debugMsg)
+            logger.debug("--------------------")
+            # create a multiple array with params from different lines
+            t = msc_table[injection_point][0]
+            extended[t]["params"] = {tag:params}
+            extended[tag] = {"attack": 6}
+            sqli[injection_point][1].append((tag,params))
+            sqli.append(["e",injection_point])
     return sqli
 
 
