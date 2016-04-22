@@ -36,6 +36,7 @@ from os import listdir
 # Where  a: attack
 #        n: normal request
 #        e: exploit
+
 """
 Understands sql-injection attacks on the message sequence chart.
 msc_table: is the message sequence chart table
@@ -46,6 +47,18 @@ def sqli(msc_table,extended):
     logger.debug("Starting extend_trace_sqli")
     sqli = []
     injection_point = ""
+
+    # regexp 
+    r_sqli = "http_request\((:?.*?)sqli(:?.*?)\)"
+    r_tuple_response = "http_response\((:?.*?)\)\.tuple\("
+    r_tuple_request = "http_request\((:?.*?)tuple(:?.*?)\)"
+
+    # second-order conditions
+    cond1 = False # i -> webapp : <something>.sqli.<something>
+    cond2 = False # i -> webapp : <something>
+    cond3 = False # webapp -> i : tuple(<something>.sqli.<something>
+
+
     for idx, row in enumerate(msc_table):
         debugMsg = "row: {}".format(row)
         logger.debug(debugMsg)
@@ -58,7 +71,6 @@ def sqli(msc_table,extended):
         # if message and len(message) == 3:
         # read message and check if it's a request and require an SQLi
         if sender not in config.receiver_entities and "sqli" in msg and "tuple" not in msg:
-            prova = "9"
             debugMsg = "there is a sqli in {}".format(msg)
             logger.debug(debugMsg)
             # now we should check what kind of sqli 
