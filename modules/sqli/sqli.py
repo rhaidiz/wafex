@@ -49,9 +49,11 @@ def sqli(msc_table,extended):
     injection_point = ""
 
     # regexp 
-    r_sqli = "http_request\((:?.*?)sqli(:?.*?)\)"
-    r_tuple_response = "http_response\((:?.*?)\)\.tuple\("
-    r_tuple_request = "http_request\((:?.*?)tuple(:?.*?)\)"
+    r_sqli = "(?:.*?[^tuple(])sqli\.(?:.*)\."
+    r_tuple_response = "\((?:.*?)\)\.tuple\("
+    r_tuple_request = "(?:.*?)tuple(:?.*?)\)"
+    r_sqli_write = "(?:.*?)sqli\.evil_file(?:.*?)\)"
+    r_sqli_read = "(?:.*?[^tuple(])sqli\.([a-z]*)\."
 
     # second-order conditions
     cond1 = False # i -> webapp : <something>.sqli.<something>
@@ -67,56 +69,40 @@ def sqli(msc_table,extended):
         sender = step[0]
         receiver = step[1]
         msg = step[2]
-        
-        # if message and len(message) == 3:
-        # read message and check if it's a request and require an SQLi
-        if sender not in config.receiver_entities and "sqli" in msg and "tuple" not in msg:
-            debugMsg = "there is a sqli in {}".format(msg)
-            logger.debug(debugMsg)
-            # now we should check what kind of sqli 
-            # is sqli is followed by evil_file, is a writing
-            if( "sqli.evil_file" in msg ):
+
+        debugMsg = "Processing {} - {}".format(tag,step)
+
+        if sender not in config.receiver_entities:
+            # is a message from the intruder
+            if re.search(r_sqli_write, msg):
+                # sqli for writing
                 entry = {"attack":2}
                 extended[tag] = entry
-                sqli.append(["w",0])
-            # if is not a writing we check if sqli is followed by
-            # anything that starts with a lower-case letter
-            elif( re.search('sqli\.[a-z]',msg) != None ):
-                par = re.search('([a-zA-Z]*)\.sqli',msg)
-                entry = {"attack":1,"params":{par.group(1)}}
-                extended[tag] = entry
-                sqli.append(["r",0])
-            # otherwise is data extraction or auth bypass sqli
             else:
-                entry = {"attack":0}
-                extended[tag] = entry
-                sqli.append(["a",[]])
-            injection_point = idx
-        elif(sender not in config.receiver_entities):
-            if tag not in extended:
-                extended[tag] = {"attack":-1}
-                sqli.append(["n",0])
-        # we are exploiting a sqli, find the column that should be retrieved
-        # .([a-z]*?).tuple
-        elif "webapplication" in receiver and "tuple" in msg and "sqli" in msg:
-            #param_regexp = re.compile(r'(.*?).tuple\(')
-            param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
-            params = param_regexp.findall(msg)
-            logger.debug("exploiting sqli here")
-            debugMsg = "Message: {}".format(msg)
-            logger.debug(debugMsg)
-            debugMsg = "Params: {}".format(params)
-            logger.debug(debugMsg)
-            debugMsg = "Tag: {}".format(tag)
-            logger.debug(debugMsg)
-            logger.debug("--------------------")
-            # create a multiple array with params from different lines
-            t = msc_table[injection_point][0]
-            extended[t]["params"] = {tag:params}
-            extended[tag] = {"attack": 6}
-            sqli[injection_point][1].append((tag,params))
-            sqli.append(["e",injection_point])
-    return sqli
+                f = re.search(r_sqli_read, msg)
+                logger.debug(debugMsg)
+                print(r_sqli)
+                if f:
+                    # sqli for reading
+                    entry = {"attack":1,"params":{f.group(1)}}
+                    extended[tag] = entry
+                elif re.search(r_sqli, msg):
+                    entry = {"attack":0}
+                    extended[tag] = entry
+
+        else:
+            if re.search(r_tuple_response, msg):
+                # we are exploiting a sqli
+                param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
+                params = param_regexp.findall(msg)
+                # create a multiple array with params from different lines
+                t = msc_table[injection_point][0]
+                extended[t]["params"] = {tag:params}
+                extended[tag] = {"attack": 6}
+            else:
+                if tag not in extended and tag != "tag":
+                    extended[tag] = {"attack":-1}
+
 
 
 def sqlmap_parse_data_extracted(sqlmap_output):
@@ -271,7 +257,7 @@ def get_list_extracted_files(attack_domain):
     try:
         files = [f for f in listdir(__sqlmap_files_path) if isfile(join(__sqlmap_files_path,f))]
     except FileNotFoundError:
-        criticalMsg = "File not found {}".format(__sqlmap_files_path) 
+        criticalMsg = "File not found {}".format(__sqlmap_files_path)
         logger.critical(criticalMsg)
         logger.critical("Aborting execution")
         exit(0)
