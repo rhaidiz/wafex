@@ -49,11 +49,11 @@ def sqli(msc_table,extended):
     injection_point = ""
 
     # regexp 
-    r_sqli = "(?:.*?[^tuple(])sqli\.(?:.*)\."
-    r_tuple_response = "\((?:.*?)\)\.tuple\("
-    r_tuple_request = "(?:.*?)tuple(:?.*?)\)"
-    r_sqli_write = "(?:.*?)sqli\.evil_file(?:.*?)\)"
-    r_sqli_read = "(?:.*?[^tuple(])sqli\.([a-z]*)\."
+    r_sqli           = re.compile("(?:.*?[^tuple(])sqli\.(?:.*)\.")
+    r_tuple_response = re.compile("\((?:.*?)\)\.tuple\(")
+    r_tuple_request  = re.compile("(?:.*?)tuple(:?.*?)\)")
+    r_sqli_write     = re.compile("(?:.*?)sqli\.evil_file(?:.*?)\)")
+    r_sqli_read      = re.compile("(?:.*?[^tuple(])sqli\.([a-z]*)\.")
 
     # second-order conditions
     cond1 = False # i -> webapp : <something>.sqli.<something>
@@ -74,24 +74,24 @@ def sqli(msc_table,extended):
 
         if sender not in config.receiver_entities:
             # is a message from the intruder
-            if re.search(r_sqli_write, msg):
+            if r_sqli_write.search(msg):
                 # sqli for writing
                 entry = {"attack":2}
                 extended[tag] = entry
             else:
-                f = re.search(r_sqli_read, msg)
+                f = r_sqli_read.search(msg)
                 logger.debug(debugMsg)
                 print(r_sqli)
                 if f:
                     # sqli for reading
                     entry = {"attack":1,"params":{f.group(1)}}
                     extended[tag] = entry
-                elif re.search(r_sqli, msg):
+                elif r_sqli.search(msg):
                     entry = {"attack":0}
                     extended[tag] = entry
 
         else:
-            if re.search(r_tuple_response, msg):
+            if r_tuple_response.search(msg):
                 # we are exploiting a sqli
                 param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
                 params = param_regexp.findall(msg)
