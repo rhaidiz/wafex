@@ -48,7 +48,7 @@ def sqli(msc_table,extended):
     sqli = []
     injection_point = ""
 
-    # regexp 
+    # regexp
     r_sqli           = re.compile("(?:.*?[^tuple(])sqli\.(?:.*)\.")
     r_tuple_response = re.compile("\((?:.*?)\)\.tuple\(")
     r_tuple_request  = re.compile("(?:.*?)tuple(:?.*?)\)")
@@ -62,18 +62,16 @@ def sqli(msc_table,extended):
 
 
     for idx, row in enumerate(msc_table):
-        debugMsg = "row: {}".format(row)
-        logger.debug(debugMsg)
         tag = row[0]
         step = row[1]
         sender = step[0]
         receiver = step[1]
         msg = step[2]
 
-        debugMsg = "Processing {} - {}".format(tag,step)
-
         if sender not in config.receiver_entities:
             # is a message from the intruder
+            debugMsg = "Processing {} - {}".format(msg)
+            logger.debug(debugMsg)
             if r_sqli_write.search(msg):
                 # sqli for writing
                 entry = {"attack":2}
@@ -101,7 +99,11 @@ def sqli(msc_table,extended):
                 extended[tag] = {"attack": 6}
             else:
                 if tag not in extended and tag != "tag":
-                    extended[tag] = {"attack":-1}
+                    tmp = ["?" if idx%2 else k for idx,k in enumerate(msg.split("."))]
+                    params = dict(itertools.zip_longest(*[iter(tmp)] * 2, fillvalue=""))
+                    extended[tag] = {"attack":-1,"params":params}
+                    debugMsg = "Normal request: {} params {}".format(tag, params)
+                    logger.debug(debugMsg)
 
 
 

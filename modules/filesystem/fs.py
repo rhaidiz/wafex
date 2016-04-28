@@ -9,6 +9,7 @@ import json
 import config
 import requests
 import linecache
+import itertools
 import modules.wrapper.wfuzz as fuzzer
 
 from modules.logger import logger
@@ -23,87 +24,62 @@ extended: is a JSON structure that extendes the msc_table for concretizing
 def filesystem(msc_table,extended):
     logger.debug("Starting extend_trace_filesystem")
     fs = []
+    logger.debug(extended)
+
+    # regexp
+    r_write_no_sqli  = re.compile("([a-zA-Z]*?)\.s\.evil_file(?:.*?)")
+    r_path_injection = re.compile("([a-zA-Z]*?)\.s\.path_injection(?:.*?)")
+    r_file           = re.compile("(?:[a-z]*?)\.s\.e_file\(([a-z]*?)\)")
+
     for idx, row in enumerate(msc_table):
         tag = row[0]
         step = row[1]
         sender = step[0]
         receiver = step[1]
         msg = step[2]
-        # message is a request
-        if(sender not in config.receiver_entities):
-            logger.debug(step)
-            # message is a request:
-            # - evil_file is a fileupload (without sqli)
-            # - path_injection is a fileinclude
-            if "evil_file" in msg and "sqli" not in msg:
-                # file upload, get the parameters
-                logger.debug(msg)
-                p = re.search("([a-zA-Z]*)\.evil_file",msg)
-                if p != None:
-                    entry = {"attack":5,"params":{p.group(1):"evil_file"}}
-                    extended[tag] = entry
-                    fs.append(["u",p.group(1)])
-            # this is an indefined path injection, access a not specified file
-            # in the filesystem
-            elif "path_injection" in msg:
-                # first check that we don't have some other attack on
-                # that tag, and if there is it should be -1 which means no attack
-                p = re.search("([a-zA-Z]*)\.path_injection",msg)
-                if (tag not in extended and p != None) or (tag in extended and extended[tag]["attack"] == -1) :
-                    entry = {"attack":4,"params":{p.group(1):"?"}}
-                    extended[tag] = entry
-                    fs.append(["r",p.group(1)])
 
-            elif "f_file(" in msg:
-                # there's a request that sends something function of file
-                abfilename = set(re.findall("f_file\(([a-zA-Z]*)\)",msg))
-                debugMsg = "abfilename: {}".format(abfilename)
-                logger.debug(debugMsg)
-                entry = {"attack":7}
+        if sender not in config.receiver_entities:
+            # is a message from the intruder
+            debugMsg = "processing {}".format(msg)
+            logger.debug(debugMsg)
+            params = r_write_no_sqli.search(msg)
+            if "sqli" not in msg and params:
+                # is a malicious file-write (upload)
+                entry = {"attack":5,"params":{params.group(1):"evil_file"}}
                 extended[tag] = entry
-                #fs.append(["e",abfilename])
-                for idx2,row2 in enumerate(msc_table):
-                    # when we find that f_file(?) is used, we should loop from the
-                    # beginning until this point and check where we should retrieve this
-                    # file 
-                    tag2 = row2[0]
-                    step2 = row2[1]
-                    if idx2 < idx:
-                        sender2 = step2[0]
-                        receiver2 = step2[1]
-                        msg2 = step2[2]
-                        # message is valid
-                        if(sender2 not in config.receiver_entities and not "sqli" in msg2 ):
-                            for v in abfilename:
-                                k_v = re.search("([a-zA-Z]*)\."+v,msg2)
-                                if k_v == None:
-                                    continue
-                                entry = {"attack":4,"params":{k_v.group(1),v}}
-                                extended[tag2] = entry
-                                #fs[idx2] = ["r",v]
-
+                logger.debug("1")
             else:
-                    if tag not in extended:
-                        debugMsg = "--------> Normal request: {}".format(tag)
-                        logger.debug(debugMsg)
-                        extended[tag] = {"attack":-1}
-                        logger.debug("normal request")
-                        fs.append(["n",0])
-        else:
-            # check eveytime there is a message from webapplication to
-            # filesystem right alter a message sent from the intruder to webapp
-            # if that is the case, possible path traversal
-            if sender == "webapplication" and receiver == "<i>":
-                prev_row = msc_table[idx-1]
-                prev_tag = prev_row[0]
-                prev_message = prev_row[1]
-                prev_msg = prev_message[2]
-                read_file_regexp = re.search("f_file\((.*)\)",msg)
-                if read_file_regexp != None:
-                    payload = read_file_regexp.group(1)
-                    if payload in prev_msg:
-                        debugMsg = "we have a possible traversal in {}".format(prev_tag)
-                        logger.debug(debugMsg)
+                params = r_path_injection.search(msg)
+                if "sqli" not in msg and params:
+                    # is a file-include with payload path_injection
+                    entry = {"attack":4,"params":{params.group(1):"?"}}
+                    extended[tag] = entry
+                    logger.debug("2 {}".format(params))
+                else:
+                    payload = r_file.search(msg)
+                    if payload:
+                        # I've found the intruder is sending somthing
+                        # function of file(). So I'm looking where I've
+                        # seen the file being send and I mark it as an
+                        # attack
+                        logger.debug("3")
+                        for tag,attack in extended:
+                            for k,v in attack["params"]:
+                                if payload in v:
+                                    extended[tag]["attack"] = 4
+                    else:
+                        logger.debug("4")
+                        if tag not in extended and tag != "tag":
+                            # this is a normal request
+                            tmp = ["?" if idx%2 else k for idx,k in enumerate(msg.split(".s."))]
+                            params = dict(itertools.zip_longest(*[iter(tmp)] * 2, fillvalue=""))
+                            debugMsg = "Normal request: {} params {}".format(tag, params)
+                            logger.debug(debugMsg)
+
+                            extended[tag] = {"attack":-1,"params":params}
+                            logger.debug("normal request")
+                            fs.append(["n",0])
+
 
 
 def execute_wfuzz(fuzzer_details):
