@@ -73,24 +73,24 @@ def sqli(msc_table,extended):
             debugMsg = "Processing {} - {}".format(msg)
             logger.debug(debugMsg)
             if r_sqli_write.search(msg):
-                # sqli for writing
+                # sqli for file writing
                 entry = {"attack":2}
                 extended[tag] = entry
             else:
                 f = r_sqli_read.search(msg)
-                logger.debug(debugMsg)
-                print(r_sqli)
                 if f:
-                    # sqli for reading
+                    # sqli for file reading
                     entry = {"attack":1,"params":{f.group(1)}}
                     extended[tag] = entry
                 elif r_sqli.search(msg):
+                    cond1 = True if cond1 == False else False
                     entry = {"attack":0}
                     extended[tag] = entry
 
         else:
             if r_tuple_response.search(msg):
                 # we are exploiting a sqli
+                cond3 = True if cond1 == True and cond2 == True and cond3 == False else False
                 param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
                 params = param_regexp.findall(msg)
                 # create a multiple array with params from different lines
@@ -99,6 +99,8 @@ def sqli(msc_table,extended):
                 extended[tag] = {"attack": 6}
             else:
                 if tag not in extended and tag != "tag":
+                    # this is a normal request
+                    cond2 = True if cond1 == True and cond2 == False else False
                     tmp = ["?" if idx%2 else k for idx,k in enumerate(msg.split("."))]
                     params = dict(itertools.zip_longest(*[iter(tmp)] * 2, fillvalue=""))
                     extended[tag] = {"attack":-1,"params":params}

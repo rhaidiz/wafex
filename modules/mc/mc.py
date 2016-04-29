@@ -54,12 +54,14 @@ def generate_msc(file_attack_trace,file_aslan_model):
 """
 Execute the CL-Atse model checker locally
 """
-def local_cl_atse(file_aslan):
+def local_cl_atse(file_aslan,options=[]):
     global CLATSE
     logger.info("Executing CL-Atse locally")
     atse_output = os.path.splitext(file_aslan)[0] + ".atse"
     atse_output_descriptor = open(atse_output,"w")
-    p1 = subprocess.Popen([CLATSE,file_aslan],universal_newlines=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    atse_execution_array = [CLATSE] + options + [file_aslan]
+    logger.debug(atse_execution_array)
+    p1 = subprocess.Popen(atse_execution_array,universal_newlines=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     try:
         out,err = p1.communicate(timeout=600)
     except subprocess.TimeoutExpired:

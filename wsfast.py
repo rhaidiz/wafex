@@ -38,8 +38,13 @@ def main():
     requests.add_argument("--proxy",help="Use an HTTP proxy when executing requests")
     requests.add_argument("--keep-set-cookie",help="Keep Set-Cookie header from response",action="store_true")
 
+    model_checker = cmd.add_argument_group("Model-checker options")
+    model_checker.add_argument("--mc-options",help="String representing the options to use with the selected model checker. For more information on the available options check the model-checker's manual")
+
     args = cmd.parse_args()
     load_model = args.model
+
+    mc_options = args.mc_options.split(" ") if args.mc_options else []
 
     # check if model file exists
     if not os.path.isfile(load_model):
@@ -86,7 +91,7 @@ def main():
     file_aslan_model, err = mc.aslanpp2aslan(load_model)
 
     # we can now run the model checker, by default we use Cl-Atse locally
-    file_attack_trace = mc.local_cl_atse(file_aslan_model)
+    file_attack_trace = mc.local_cl_atse(file_aslan_model,mc_options)
 
     # translate the attack trace in msc
     msc_output = mc.generate_msc(file_attack_trace,file_aslan_model)
