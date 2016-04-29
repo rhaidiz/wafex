@@ -47,14 +47,12 @@ def filesystem(msc_table,extended):
                 # is a malicious file-write (upload)
                 entry = {"attack":5,"params":{params.group(1):"evil_file"}}
                 extended[tag] = entry
-                logger.debug("1")
             else:
                 params = r_path_injection.search(msg)
                 if "sqli" not in msg and params:
                     # is a file-include with payload path_injection
                     entry = {"attack":4,"params":{params.group(1):"?"}}
                     extended[tag] = entry
-                    logger.debug("2 {}".format(params))
                 else:
                     payload = r_file.search(msg)
                     if payload:
@@ -62,13 +60,11 @@ def filesystem(msc_table,extended):
                         # function of file(). So I'm looking where I've
                         # seen the file being send and I mark it as an
                         # attack
-                        logger.debug("3")
                         for tag,attack in extended:
                             for k,v in attack["params"]:
                                 if payload in v:
                                     extended[tag]["attack"] = 4
                     else:
-                        logger.debug("4")
                         if tag not in extended and tag != "tag":
                             # this is a normal request
                             tmp = ["?" if idx%2 else k for idx,k in enumerate(msg.split(".s."))]
