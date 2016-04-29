@@ -127,6 +127,10 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 req_params[K] = V
             req["params"] = req_params
 
+            if attack == 8:
+                logger.info("Second order injection")
+                debugMsg = "Exploiting so in {} and {}".format(tag,attack_details["so_tag"])
+
             # filesystem inclusion
             if attack == 4:
                 logger.info("Perform file inclusion attack!")

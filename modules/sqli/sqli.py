@@ -8,6 +8,7 @@ import re
 import json
 import config
 import requests
+import itertools
 import linecache
 import threading
 
@@ -49,16 +50,18 @@ def sqli(msc_table,extended):
     injection_point = ""
 
     # regexp
-    r_sqli           = re.compile("(?:.*?[^tuple(])sqli\.(?:.*)\.")
-    r_tuple_response = re.compile("\((?:.*?)\)\.tuple\(")
+    r_sqli           = re.compile("(?:.*?[^tuple(])\.?sqli\.(?:.*)\.?")
+    r_tuple_response = re.compile("(?:.*?)\.?tuple\(")
     r_tuple_request  = re.compile("(?:.*?)tuple(:?.*?)\)")
     r_sqli_write     = re.compile("(?:.*?)sqli\.evil_file(?:.*?)\)")
     r_sqli_read      = re.compile("(?:.*?[^tuple(])sqli\.([a-z]*)\.")
 
     # second-order conditions
-    cond1 = False # i -> webapp : <something>.sqli.<something>
-    cond2 = False # i -> webapp : <something>
-    cond3 = False # webapp -> i : tuple(<something>.sqli.<something>
+    so_cond1 = False # i -> webapp : <something>.sqli.<something>
+    so_cond2 = False # i -> webapp : <something>
+    so_cond3 = False # webapp -> i : tuple(<something>.sqli.<something>
+    tag_so_cond1 = ""
+    so_tag    = ""
 
 
     for idx, row in enumerate(msc_table):
@@ -70,7 +73,7 @@ def sqli(msc_table,extended):
 
         if sender not in config.receiver_entities:
             # is a message from the intruder
-            debugMsg = "Processing {} - {}".format(msg)
+            debugMsg = "Processing {}".format(msg)
             logger.debug(debugMsg)
             if r_sqli_write.search(msg):
                 # sqli for file writing
@@ -83,29 +86,45 @@ def sqli(msc_table,extended):
                     entry = {"attack":1,"params":{f.group(1)}}
                     extended[tag] = entry
                 elif r_sqli.search(msg):
-                    cond1 = True if cond1 == False else False
+                    if so_cond1 == False:
+                        # we check if previous conditions for so are valid
+                        so_cond1 = True
+                        tag_so_cond1 = tag
+                        logger.debug("SO so_cond1")
                     entry = {"attack":0}
                     extended[tag] = entry
-
+                else:
+                    if tag not in extended and tag != "tag":
+                        # this is a normal request ... 
+                        # we check if previous conditions for so are valid
+                        if so_cond1 == True and so_cond2 == False:
+                            logger.debug("SO so_cond2")
+                            so_cond2 = True
+                            so_tag = tag
+                        tmp = ["?" if idx%2 else k for idx,k in enumerate(msg.split("."))]
+                        params = dict(itertools.zip_longest(*[iter(tmp)] * 2, fillvalue=""))
+                        extended[tag] = {"attack":-1,"params":params}
+                        debugMsg = "Normal request: {} params {}".format(tag, params)
+                        logger.debug(debugMsg)
         else:
+            debugMsg = "Processing {}".format(msg)
+            logger.debug(debugMsg)
             if r_tuple_response.search(msg):
                 # we are exploiting a sqli
-                cond3 = True if cond1 == True and cond2 == True and cond3 == False else False
+                logger.debug("so_cond1 {} so_cond2 {} so_cond3 {}".format(so_cond1,so_cond2,so_cond3))
+                if so_cond1 == True and so_cond2 == True and so_cond3 == False:
+                    logger.debug("SO so_cond3")
+                    # we check if previous conditions for so are valid
+                    extended[tag_so_cond1]["attack"] = 8
+                    extended[tag_so_cond1]["so_tag"] = so_tag
+                    so_cond3 = True
                 param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
                 params = param_regexp.findall(msg)
                 # create a multiple array with params from different lines
-                t = msc_table[injection_point][0]
-                extended[t]["params"] = {tag:params}
-                extended[tag] = {"attack": 6}
-            else:
-                if tag not in extended and tag != "tag":
-                    # this is a normal request
-                    cond2 = True if cond1 == True and cond2 == False else False
-                    tmp = ["?" if idx%2 else k for idx,k in enumerate(msg.split("."))]
-                    params = dict(itertools.zip_longest(*[iter(tmp)] * 2, fillvalue=""))
-                    extended[tag] = {"attack":-1,"params":params}
-                    debugMsg = "Normal request: {} params {}".format(tag, params)
-                    logger.debug(debugMsg)
+                # t = msc_table[injection_point][0]
+                # extended[t]["params"] = {tag:params}
+                # extended[tag] = {"attack": 6}
+
 
 
 
