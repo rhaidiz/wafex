@@ -122,14 +122,31 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             req["method"] = concretization_data[tag]["method"]
             # now create the params
             req_params = {}
-            for k,v in concretization_data[tag]["params"].items():
-                K,V = v.split("=")
-                req_params[K] = V
-            req["params"] = req_params
+            if "params" in concretization_data[tag]:
+                for k,v in concretization_data[tag]["params"].items():
+                    K,V = v.split("=")
+                    req_params[K] = V
+                req["params"] = req_params
 
             if attack == 8:
                 logger.info("Second order injection")
-                debugMsg = "Exploiting so in {} and {}".format(tag,attack_details["so_tag"])
+                logger.warning("Support for second order injection is limited")
+                c = __ask_yes_no("Are you really sure you want to procede?")
+                if not c:
+                    logger.info("Aborting execution")
+                    exit(0)
+                so_tag = attack_details["so_tag"]
+                so_step = None
+                for item in msc_table:
+                    if item[0] == so_tag:
+                        so_step = item
+                        debugMsg = "Exploiting so in {} and {}:{}".format(tag,so_tag,item)
+                        logger.debug(debugMsg)
+                        break
+                req["secondOrder"] = concretization_data[so_tag]["url"]
+                
+                sqli.execute_sqlmap(req)
+                continue
 
             # filesystem inclusion
             if attack == 4:
@@ -434,11 +451,12 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             if attack == -1:
                 logger.info("Perform normal request")
                 logger.debug(msc_table[idx][0])
-                for k,v in req["params"].items():
-                    if v == "?":
-                        inputMsg = "Provide value for: {}\n".format(k)
-                        new_value = input(inputMsg)
-                        req["params"][k] = new_value
+                if "params" in req:
+                    for k,v in req["params"].items():
+                        if v == "?":
+                            inputMsg = "Provide value for: {}\n".format(k)
+                            new_value = input(inputMsg)
+                            req["params"][k] = new_value
                 response = execute_request(s,req)
                 found = __check_response(idx,msc_table,concretization_data,response)
                 if not found:

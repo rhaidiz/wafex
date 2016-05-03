@@ -95,7 +95,7 @@ def sqli(msc_table,extended):
                     extended[tag] = entry
                 else:
                     if tag not in extended and tag != "tag":
-                        # this is a normal request ... 
+                        # this is a normal request ...
                         # we check if previous conditions for so are valid
                         if so_cond1 == True and so_cond2 == False:
                             logger.debug("SO so_cond2")
@@ -161,17 +161,31 @@ def sqlmap_parse_data_extracted(sqlmap_output):
 
 
 def execute_sqlmap(sqlmap_details):
-    global data_to_extract
-    url = sqlmap_details["url"]
-    method = sqlmap_details["method"]
-    params = sqlmap_details["params"]
-
+    global data_to_extract 
+    
     logger.info("run sqlmapapi.py")
     is_sqlmap_up = sqlmap.run_api_server()
     if not is_sqlmap_up:
         logger.critical("sqlmap server not running")
         exit()
     task = sqlmap.new_task()
+    
+    url = sqlmap_details["url"]
+    method = sqlmap_details["method"]
+    if "params" in sqlmap_details:
+        params = sqlmap_details["params"]
+        url_params = ""
+        for k,v in params.items():
+            url_params = url_params+k+"="+v+"&"
+        url_params = url_params[:-1]
+        if method == "GET":
+            url = url+"?"+url_params
+            sqlmap.set_option("url",url,task)
+        elif method == "POST":
+            sqlmap.set_option("url",url,task)
+            sqlmap.set_option("data",url_params,task)
+
+
 
     # hardcoded configuration for the univr server
     # TODO: make it configurable from the command line
@@ -188,18 +202,10 @@ def execute_sqlmap(sqlmap_details):
         logger.debug(debugMsg)
         sqlmap.set_option("cookie",c,task)
 
-    url_params = ""
-    for k,v in params.items():
-        url_params = url_params+k+"="+v+"&"
-    url_params = url_params[:-1]
-    if method == "GET":
-        url = url+"?"+url_params
-        sqlmap.set_option("url",url,task)
-    elif method == "POST":
-        sqlmap.set_option("url",url,task)
-        sqlmap.set_option("data",url_params,task)
 
-    try:
+    # BEGIN: set specific attack details
+    # data extraction
+    if "extract " in sqlmap_details:
         data_to_extract = sqlmap_details["extract"]
         sqlmap.set_option("dumpTable","true",task)
         # set data extraction only if we have data to extract
@@ -213,15 +219,13 @@ def execute_sqlmap(sqlmap_details):
             col = col + tbl_list[1]
         sqlmap.set_option("tbl",tbl,task)
         sqlmap.set_option("col",col,task)
-    except KeyError:
-        pass
-    try:
+    # file read
+    if "read" in sqlmap_details:
         file_to_extract = sqlmap_details["read"]
         # TODO: ask if you want to change the file or continue ?
         sqlmap.set_option("rFile",file_to_extract,task)
-    except KeyError:
-        pass
-    try:
+    # file write
+    if "write" in sqlmap_details:
 
         file_to_write = sqlmap_details["write"]
         if not isfile(file_to_write):
@@ -230,8 +234,11 @@ def execute_sqlmap(sqlmap_details):
         sqlmap.set_option("wFile",join(".",file_to_write),task)
         path = input("Where to upload the file?")
         sqlmap.set_option("dFile",path,task)
-    except KeyError:
-        pass
+    # second order
+    if "secondOrder" in sqlmap_details:
+        secondOrder_url = sqlmap_details["secondOrder"]
+        sqlmap.set_option("secondOrder",secondOrder_url,task)
+    # END: set specific attack details
 
     logger.info("sqlmap analysis started")
     sqlmap.start_scan(url,task)
