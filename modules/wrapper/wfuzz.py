@@ -43,6 +43,8 @@ def run_wfuzz(url):
     p1 = subprocess.Popen(WFUZZ,cwd="./wfuzz/",universal_newlines=True,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
     try:
         out, err = p1.communicate(timeout=10)
+        debugMsg = "wfuzz out {}".format(out)
+        logger.debug(debugMsg)
         return json.loads(out)
     except subprocess.TimeoutExpired:
         p1.kill()

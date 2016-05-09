@@ -10,6 +10,7 @@ import config
 import requests
 import linecache
 import itertools
+import modules.utils as utils
 import modules.wrapper.wfuzz as fuzzer
 
 from modules.logger import logger
@@ -30,6 +31,7 @@ def filesystem(msc_table,extended):
     r_write_no_sqli  = re.compile("([a-zA-Z]*?)\.s\.evil_file(?:.*?)")
     r_path_injection = re.compile("([a-zA-Z]*?)\.s\.path_injection(?:.*?)")
     r_file           = re.compile("(?:[a-z]*?)\.s\.e_file\(([a-z]*?)\)")
+    r_evil_file      = re.compile("^evil_file")
 
     for idx, row in enumerate(msc_table):
         tag = row[0]
@@ -37,6 +39,7 @@ def filesystem(msc_table,extended):
         sender = step[0]
         receiver = step[1]
         msg = step[2]
+        entry = None
 
         if sender not in config.receiver_entities:
             # is a message from the intruder
@@ -45,36 +48,48 @@ def filesystem(msc_table,extended):
             params = r_write_no_sqli.search(msg)
             if "sqli" not in msg and params:
                 # is a malicious file-write (upload)
-                entry = {"attack":5,"params":{params.group(1):"evil_file"}}
-                extended[tag] = entry
+                #entry = {"attack":5,"params":{params.group(1):"evil_file"}}
+                params = utils.__get_parameters(msg)
+                entry = { "attack" : 5, "params" : params }
             else:
+                if r_evil_file.match(msg):
+                    params = utils.__get_parameters(msg)
+                    entry = { "attack" : 9, "params" : params }
+
                 params = r_path_injection.search(msg)
                 if "sqli" not in msg and params:
                     # is a file-include with payload path_injection
-                    entry = {"attack":4,"params":{params.group(1):"?"}}
-                    extended[tag] = entry
+                    #entry = { "attack" : 4, "params" : { params.group(1) : "?" } }
+                    params = utils.__get_parameters(msg)
+                    entry = { "attack" : 4, "params" : params }
                 else:
                     payload = r_file.search(msg)
                     if payload:
-                        # I've found the intruder is sending somthing
-                        # function of file(). So I'm looking where I've
-                        # seen the file being send and I mark it as an
-                        # attack
+                        # The intruder is sending something
+                        # function of file(). Find where
+                        # the file-name was previously used
                         for tag,attack in extended:
                             for k,v in attack["params"]:
                                 if payload in v:
                                     extended[tag]["attack"] = 4
+                        params = utils.__get_parameters(msg)
+                        entry = { "attack" : 7, "params" : params }
                     else:
                         if tag not in extended and tag != "tag":
                             # this is a normal request
-                            tmp = ["?" if idx%2 else k for idx,k in enumerate(msg.split(".s."))]
-                            params = dict(itertools.zip_longest(*[iter(tmp)] * 2, fillvalue=""))
+                            params = utils.__get_parameters(msg)
+
                             debugMsg = "Normal request: {} params {}".format(tag, params)
                             logger.debug(debugMsg)
 
-                            extended[tag] = {"attack":-1,"params":params}
+                            entry = { "attack" : -1, "params" : params }
                             logger.debug("normal request")
-                            fs.append(["n",0])
+
+        if entry != None:
+            debugMsg = "entry {} in {}".format(entry,tag)
+            logger.debug(debugMsg)
+
+            extended[tag] = entry
 
 
 
@@ -103,6 +118,20 @@ def execute_wfuzz(fuzzer_details):
     get_url = url+"?"+get_params
     out = fuzzer.run_wfuzz(get_url)
     return out
+
+
+
+def save_extracted_file(name,text):
+    filepath = os.path.join(".", name)
+    try:
+        f = open(filepath,"w")
+        f.write(text)
+    except Exception as e:
+        criticalMsg = "Error {}\n in saving the file {}, aborting execution!".format(e, filepath)
+        logger.critical(criticalMsg)
+        exit(0)
+    f.close()
+    return filepath
 
 """
 Given a filename, this function returns a list of payloads that needs to be tested for performin

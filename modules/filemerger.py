@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from modules.logger import logger
+
 def merger(file1,file2,out="out.txt"):
+    logger.info("Start merger")
     # open the first file and create a structure in memory 
     # to be used for the merging
     m = {}
@@ -10,6 +13,8 @@ def merger(file1,file2,out="out.txt"):
        for line in f1:
            if line.strip().startswith("@"):
                tag = line.strip().rstrip()
+               debugMsg = "tag {} line {}".format(tag,line)
+               logger.debug(debugMsg)
                if tag not in m:
                    m[tag] = ""
            elif tag != "":

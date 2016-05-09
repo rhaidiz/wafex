@@ -59,6 +59,8 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
 
     # web application's output
     sqlmap_output = None
+    sqlmap_data = None
+    sqlmap_log = None
     files_output = []
 
     # request session object for performing subsequent HTTP requests
@@ -84,8 +86,10 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             sender = m[0]
             receiver = m[1]
             message = m[2]
-            debugMsg = "Message: {}".format(message)
+
+            debugMsg = "Message: {}".format(row)
             logger.debug(debugMsg)
+
             attack_details = msc_table_info[tag]
             attack = attack_details["attack"]
             params = None
@@ -118,6 +122,9 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
 
             # start populating the structure used for performing attacks\requests
             req = {}
+
+            # read the concretization file only if we are not concretizing
+            # a remote shell
             req["url"] = concretization_data[tag]["url"]
             req["method"] = concretization_data[tag]["method"]
             # now create the params
@@ -144,7 +151,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                         logger.debug(debugMsg)
                         break
                 req["secondOrder"] = concretization_data[so_tag]["url"]
-                
+
                 sqli.execute_sqlmap(req)
                 continue
 
@@ -185,12 +192,13 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                             req["params"][k] = v
                         response = execute_request(s,req)
                         pathname = url.replace("http://","").replace("https://","").replace("/","_")
-                        filepath = os.path.join(".",pathname)
-                        f = open(filepath,"w")
-                        f.write(response.text)
-                        f.close()
-                        files_output.append(filepath)
-                        logger.info(filepath)
+
+                        debugMsg = "Saving file {}".format(pathname)
+                        logger.debug(debugMsg)
+
+                        saved_path = fs.save_extracted_file(pathname,response.text)
+                        files_output.append(saved_path)
+
                     logger.debug(files_output)
                     logger.info("Files have been saved")
                 else:
@@ -210,7 +218,8 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 logger.info(infoMsg)
 
                 req["read"] = real_file_to_read
-                sqli.execute_sqlmap(req)
+                sqlmap_data, sqlmap_log = sqli.execute_sqlmap(req)
+                debugMsg = "sqlmap_log {}".format(sqlmap_log)
 
                 # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
                 # list extracted file content
@@ -227,13 +236,23 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             # SQL-injection filesystem WRITE
             if attack == 2:
                 logger.info("Perform SQLi attack for file writing!")
-                abstract_evil_file = re.search(r'sqli\.([a-zA-Z_]*)',request_message).group(1)
-                real_evil_file = concretization_data["files"][abstract_evil_file]
-                debugMsg = "file to write: {}".format(readl_evil_file)
+
+                warningMsg = "{} makes use of sqlmap for concretization, sqlmap supports file writing only if UNION query or Stacked Query techniques can be applied. In all other cases sqlmap will fail.".format(config.TOOL_NAME)
+                logger.warning(warningMsg)
+
+                prompt = "Do you want to procede?"
+                c = __ask_yes_no(prompt)
+                if not c:
+                    logger.info("Aborting excution")
+                    exit()
+
+                # we are uploading a remote shell for file reading
+                req["write"] = config.remote_shell_write
+
+                sqlmap_data, sqlmap_log = sqli.execute_sqlmap(req)
+                debugMsg = "sqlmap_log {}".format(sqlmap_log)
                 logger.debug(debugMsg)
 
-                req["write"] = real_evil_file
-                sqli.execute_sqlmap(req)
                 continue
 
 
@@ -262,11 +281,15 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                    req["extract"] = extract
                    # for the execution we need (url,method,params,data_to_extract)
                    # data_to_extract => table.column
-                   # sqlmap_output = execute_sqlmap(url,method,params,data_to_extract)
-                   output = sqli.execute_sqlmap(req)
-                   sqlmap_output = sqli.sqlmap_parse_data_extracted(output)
-                   logger.debug(sqlmap_output)
-                   if not sqlmap_output:
+                   # sqlmap_data = execute_sqlmap(url,method,params,data_to_extract)
+                   sqlmap_data, sqlmap_log = sqli.execute_sqlmap(req)
+
+                   sqlmap_output = sqli.sqlmap_parse_data_extracted(sqlmap_data)
+                   # check if the last message from sqlmap was an error or critical
+                   debugMsg = "sqlmap log {}".format(sqlmap_log)
+                   logger.debug(debugMsg)
+                   logger.debug(sqlmap_data)
+                   if not sqlmap_data:
                        logger.warning("No data extracted from the database")
                        exit()
                 # authentication bypass
@@ -317,7 +340,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                            except KeyError:
                                logger.critical("couldn't find table details in the concretization file")
                                exit(0)
-                           extracted_values = sqlmap_output[concrete_table[0]][concrete_table[1]]
+                           extracted_values = sqlmap_data[concrete_table[0]][concrete_table[1]]
                            for v in extracted_values:
                                pair.append(tmp[0]+"="+v)
                            req_params.append(pair)
@@ -345,7 +368,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                            except KeyError:
                                logger.debug("coldn't find table details in the concretization file")
                                exit(0)
-                           extracted_values = sqlmap_output[concrete_table[0]][concrete_table[1]]
+                           extracted_values = sqlmap_data[concrete_table[0]][concrete_table[1]]
                            for v in extracted_values:
                                pair.append(tmp[0]+"="+v)
                            req_cookies.append(pair)
@@ -446,6 +469,33 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                     exit(0)
                 continue
 
+
+            if attack == 9:
+                debugMsg = "We are exploiting a remote shell for file reading {}".format(message)
+                logger.debug(debugMsg)
+
+
+                if req["url"] == "":
+                    # we need to know the URL of the file we just uploaded
+                    url_evil_file = ""
+                    while url_evil_file == "":
+                        url_evil_file = input("URL of the remote evil script:\n")
+                    req["url"] = url_evil_file
+
+
+                # perform a request to url_evil_file
+                response = execute_request(s,req)
+                url = req["url"]
+                pathname = url.replace("http://","").replace("https://","").replace("/","_")
+
+                saved_path = fs.save_extracted_file(pathname,response.text)
+                files_output.append(saved_path)
+
+                infoMsg = "File {} has been saved".format(saved_path)
+                logger.info(infoMsg)
+
+                continue
+
             # normal http request
             # we consider Forced browsing e File upload as normal requests
             if attack == -1:
@@ -477,7 +527,7 @@ def __ask_file_to_show(files):
         for f in files:
             logger.info("%d) %s", i,f)
             i = i + 1
-        selection = input("Which file you want to open? (d)one ")
+        selection = input("Which file you want to open? (d)one\n")
         if selection == "d":
             return
         try:
@@ -504,7 +554,7 @@ def __get_file_to_read(message, concretization_data):
     real_file_to_retrieve = ""
     if "path_injection" in message:
         # it means we prompt the user for the filename
-        real_file_to_retrieve = input("Which file yuo want to read?")
+        real_file_to_retrieve = input("Which file yuo want to read?\n")
     else:
         # get the name of the file to retrieve from the concretization file
         abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',message).group(1)
@@ -513,9 +563,9 @@ def __get_file_to_read(message, concretization_data):
         c = __ask_yes_no("The file that will be read is: " + real_file_to_retrieve + ", are you sure?")
         if not c:
             # ask the user which file to retrieve
-            real_file_to_retrieve = input("Which file you want to read?")
+            real_file_to_retrieve = input("Which file you want to read?\n")
     # TODO: ask what regexp we should be looking for
-    search = input("What are you looking for?")
+    search = input("What are you looking for?\n")
     return real_file_to_retrieve, search
 
 def __check_response(idx,msc_table,concretization_data,response):
@@ -534,12 +584,13 @@ def __check_response(idx,msc_table,concretization_data,response):
 
 
 def __ask_yes_no(msg,default="y"):
-    prompt = " [Y/n]"
+    prompt = "[Y/n]"
     ret = True
     if default == "n":
-        prompt = " [n/Y]"
+        prompt = "[n/Y]"
         ret = False
-    s = input(msg + prompt)
+    m = "{} {} ".format(msg,prompt)
+    s = input(m)
     if s == "":
         return ret
     if s == "Y" or s == "y":

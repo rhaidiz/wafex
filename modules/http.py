@@ -18,8 +18,17 @@ from modules.logger import logger
 
 def execute_request(s,request):
     url = request["url"]
-    method = request["method"]
+    if "method" in request:
+        method = request["method"]
+    else:
+        method = "GET"
     try:
+        logger.debug(request["params"])
+        for k,v in request["params"].items():
+            if v == "?":
+                inputMsg = "Provide value for: {}\n".format(k)
+                new_value = input(inputMsg)
+                request["params"][k] = new_value
         params = request["params"]
     except KeyError:
         params = []

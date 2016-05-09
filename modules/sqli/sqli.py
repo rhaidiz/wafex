@@ -1,4 +1,3 @@
-
 #!/usr/local/bin/python3.5
 
 """
@@ -11,6 +10,7 @@ import requests
 import itertools
 import linecache
 import threading
+import modules.utils as utils
 
 from modules.logger import logger
 from modules.wrapper import sqlmap
@@ -53,7 +53,7 @@ def sqli(msc_table,extended):
     r_sqli           = re.compile("(?:.*?[^tuple(])\.?sqli\.(?:.*)\.?")
     r_tuple_response = re.compile("(?:.*?)\.?tuple\(")
     r_tuple_request  = re.compile("(?:.*?)tuple(:?.*?)\)")
-    r_sqli_write     = re.compile("(?:.*?)sqli\.evil_file(?:.*?)\)")
+    r_sqli_write     = re.compile("(?:.*?)sqli\.evil_file(?:.*?)")
     r_sqli_read      = re.compile("(?:.*?[^tuple(])sqli\.([a-z]*)\.")
 
     # second-order conditions
@@ -70,29 +70,30 @@ def sqli(msc_table,extended):
         sender = step[0]
         receiver = step[1]
         msg = step[2]
+        entry = None
 
         if sender not in config.receiver_entities:
             # is a message from the intruder
             debugMsg = "Processing {}".format(msg)
             logger.debug(debugMsg)
             if r_sqli_write.search(msg):
+                logger.debug("SQLi file write")
                 # sqli for file writing
-                entry = {"attack":2}
-                extended[tag] = entry
+                params = utils.__get_parameters(msg)
+                entry = {"attack":2, "params" : params }
             else:
                 f = r_sqli_read.search(msg)
                 if f:
                     # sqli for file reading
                     entry = {"attack":1,"params":{f.group(1)}}
-                    extended[tag] = entry
                 elif r_sqli.search(msg):
                     if so_cond1 == False:
                         # we check if previous conditions for so are valid
                         so_cond1 = True
                         tag_so_cond1 = tag
                         logger.debug("SO so_cond1")
-                    entry = {"attack":0}
-                    extended[tag] = entry
+                    params = utils.__get_parameters(msg)
+                    entry = { "attack":0, "params" : params }
                 else:
                     if tag not in extended and tag != "tag":
                         # this is a normal request ...
@@ -101,9 +102,8 @@ def sqli(msc_table,extended):
                             logger.debug("SO so_cond2")
                             so_cond2 = True
                             so_tag = tag
-                        tmp = ["?" if idx%2 else k for idx,k in enumerate(msg.split("."))]
-                        params = dict(itertools.zip_longest(*[iter(tmp)] * 2, fillvalue=""))
-                        extended[tag] = {"attack":-1,"params":params}
+                        params = utils.__get_parameters(msg)
+                        entry = {"attack":-1,"params":params}
                         debugMsg = "Normal request: {} params {}".format(tag, params)
                         logger.debug(debugMsg)
         else:
@@ -118,12 +118,20 @@ def sqli(msc_table,extended):
                     extended[tag_so_cond1]["attack"] = 8
                     extended[tag_so_cond1]["so_tag"] = so_tag
                     so_cond3 = True
-                param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
-                params = param_regexp.findall(msg)
+                # param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
+                # params = param_regexp.findall(msg)
+
+                params = utils.__get_parameters(msg)
+                entry = { "attack" : 6, "params" : params }
                 # create a multiple array with params from different lines
                 # t = msc_table[injection_point][0]
                 # extended[t]["params"] = {tag:params}
                 # extended[tag] = {"attack": 6}
+
+        if entry != None:
+            debugMsg = "entry {} in {}".format(entry,tag)
+            logger.debug(debugMsg)
+            extended[tag] = entry
 
 
 
@@ -161,15 +169,15 @@ def sqlmap_parse_data_extracted(sqlmap_output):
 
 
 def execute_sqlmap(sqlmap_details):
-    global data_to_extract 
-    
+    global data_to_extract
+
     logger.info("run sqlmapapi.py")
     is_sqlmap_up = sqlmap.run_api_server()
     if not is_sqlmap_up:
         logger.critical("sqlmap server not running")
         exit()
     task = sqlmap.new_task()
-    
+
     url = sqlmap_details["url"]
     method = sqlmap_details["method"]
     if "params" in sqlmap_details:
@@ -232,7 +240,11 @@ def execute_sqlmap(sqlmap_details):
             debug.critical("Error: evil file not found")
             exit()
         sqlmap.set_option("wFile",join(".",file_to_write),task)
-        path = input("Where to upload the file?")
+
+        path = ""
+        while path == "":
+            path = input("Where to upload the file?\n")
+
         sqlmap.set_option("dFile",path,task)
     # second order
     if "secondOrder" in sqlmap_details:
@@ -244,19 +256,39 @@ def execute_sqlmap(sqlmap_details):
     sqlmap.start_scan(url,task)
 
     stopFlag = threading.Event()
-    sqlmap_output = ""
+    sqlmap_data = None
+    sqlmap_log = None
     while not stopFlag.wait(5):
         r = sqlmap.get_status(task)
         if "terminated" in r:
             logger.debug(sqlmap.get_log(task))
-            logger.info("sqlmap analysisnalysis terminated")
-            sqlmap_output = sqlmap.get_data(task)
+            sqlmap_data = sqlmap.get_data(task)
+            sqlmap_log = sqlmap.get_log(task)
             stopFlag.set()
         else:
             logger.debug(sqlmap.get_log(task))
             logger.info("sqlmap analysis in progress ... ")
 
-    return sqlmap_output
+    # we check if the last message generated by sqlmap is critical
+    # or an error
+    level   = sqlmap_log[-1]["level"]
+    message = sqlmap_log[-1]["message"]
+
+    if level == "WARNING":
+        logger.warning(message)
+
+    if level == "INFO":
+           logger.info(message)
+
+    if level == "ERROR" or level == "CRITICAL":
+        logger.critical("sqlmap generated an error")
+        logger.critical(message)
+        logger.critical("Aborting execution")
+        exit()
+    
+    logger.info("sqlmap analysis terminated")
+
+    return sqlmap_data, sqlmap_log
 
 
 def execute_bypass(s,request,check):

@@ -20,7 +20,7 @@ CLATSE = "modules/mc/cl-atse_x86_64-mac"
 connector = config.CONNECTOR_1_4_1
 
 """
-Generates the message sequence chart 
+Generates the message sequence chart
 from an attack trace file and the ASLan model
 """
 def generate_msc(file_attack_trace,file_aslan_model):
@@ -112,7 +112,7 @@ def aslanpp2aslan(file_aslanpp):
 
 
 """
-Takes as input an msc and returns one array with requests 
+Takes as input an msc and returns one array with requests
 and responses in order of execution.
 For each step, add the corresponding tag number.
 [ (tag#,(actor1,actor2,message)), ... ]
