@@ -16,5 +16,5 @@ CONNECTOR_1_3 = "modules/connector/aslanpp-connector-1.3.jar"
 receiver_entities = {"webapplication","filesystem","database","<webapplication>","<filesystem>","<database>"}
 
 TOOL_NAME = "Wfast"
-
+EVIL_SCRIPT = "/Users/federicodemeo/Desktop/regis/PhDStudents/demeo/SQLi-formalization/wsfast/evil_file.txt"
 remote_shell_write = "/Users/federicodemeo/Desktop/regis/PhDStudents/demeo/SQLi-formalization/wsfast/evil_file.txt"

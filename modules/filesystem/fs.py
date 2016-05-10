@@ -41,12 +41,12 @@ def filesystem(msc_table,extended):
         msg = step[2]
         entry = None
 
-        if sender not in config.receiver_entities:
+        if sender not in config.receiver_entities and "sqli" not in msg:
             # is a message from the intruder
             debugMsg = "processing {}".format(msg)
             logger.debug(debugMsg)
             params = r_write_no_sqli.search(msg)
-            if "sqli" not in msg and params:
+            if params:
                 # is a malicious file-write (upload)
                 #entry = {"attack":5,"params":{params.group(1):"evil_file"}}
                 params = utils.__get_parameters(msg)
@@ -57,7 +57,7 @@ def filesystem(msc_table,extended):
                     entry = { "attack" : 9, "params" : params }
 
                 params = r_path_injection.search(msg)
-                if "sqli" not in msg and params:
+                if "evil_file" not in msg and params:
                     # is a file-include with payload path_injection
                     #entry = { "attack" : 4, "params" : { params.group(1) : "?" } }
                     params = utils.__get_parameters(msg)

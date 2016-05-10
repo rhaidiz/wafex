@@ -10,6 +10,7 @@ import json
 import config
 import parser
 import atexit
+import readline
 import requests
 import linecache
 import threading
@@ -120,6 +121,10 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             if not c:
                 exit(0)
 
+
+            params_mapping = None
+            params_abstract = attack_details["params"]
+
             # start populating the structure used for performing attacks\requests
             req = {}
 
@@ -130,9 +135,9 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             # now create the params
             req_params = {}
             if "params" in concretization_data[tag]:
-                for k,v in concretization_data[tag]["params"].items():
-                    K,V = v.split("=")
-                    req_params[K] = V
+                params_mapping = concretization_data[tag]["params"]
+                for k in params_mapping:
+                    req_params = {**req_params, **params_mapping[k]}
                 req["params"] = req_params
 
             if attack == 8:
@@ -190,6 +195,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                         req["params"] = {}
                         for k,v in page["postdata"].items():
                             req["params"][k] = v
+                        __fill_parameters(params_abstract,params_mapping,req)
                         response = execute_request(s,req)
                         pathname = url.replace("http://","").replace("https://","").replace("/","_")
 
@@ -401,6 +407,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                             debugMsg = "Attempt to exploit sqli: {}".format(header)
                             logger.debug(debugMsg)
                             req["cookies"] = dict( item.split("=") for item in header.split("%26") )
+                            __fill_parameters(params_abstract,params_mapping,req)
                             response = execute_request(s,req)
                             found = __check_response(idx,msc_table,concretization_data,response)
                 elif len(params_perm) > 0 and len(cookies_perm) == 0:
@@ -410,6 +417,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                             debugMsg = "Attempt to exploit sqli: {}".format(param)
                             logger.debug(debugMsg)
                             req["params"] = dict( item.split("=") for item in param.split("%26") )
+                            __fill_parameters(params_abstract,params_mapping,req)
                             response = execute_request(s,req)
                             found = __check_response(idx,msc_table,concretization_data,response)
                 elif len(params_perm) > 0 and len(cookies_perm) > 0:
@@ -421,6 +429,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                                 debugMsg = "Attempt to exploit sqli: {}".format(param)
                                 logger.debug(debugMsg)
                                 req["cookies"] = dict( item.split("=") for item in header.split("%26") )
+                                __fill_parameters(params_abstract,params_mapping,req)
                                 response = execute_request(s,req)
                                 found = __check_response(idx,msc_table,concretization_data,response)
 
@@ -433,24 +442,21 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
 
             # exploit a file upload
             if attack == 5:
-                exp_params = attack_details["params"]
-                files = {}
-                for k,v in exp_params.items():
-                    try:
-                        real_pair = concretization_data[tag]["params"][k]
-                    except KeyError:
-                        criticalMsg = "Concretization file error, key {} not found in {}".format(k,tag)
-                        logger.critical(criticalMsg)
-                        exit(0)
-                    real_k,real_v = real_pair.split("=")
-                    del req["params"][real_k]
-                    # select which payload to upload
-                    if v == "evil_file":
-                        files[real_k] = open("evil_file.txt","rb")
-                req["files"] = files
-                response = execute_request(s,req)
+                logger.info("Exploit file upload")
 
-                logger.debug(response)
+                # param_abstract => { abk -> abv }
+                # param_mapping  => { abk -> { realk -> readv } }
+                # retrieve the abstract key
+                abstract_k = list(params_abstract)[0]
+                abstract_v = params_abstract[abstract_k]
+                if "evil_file" in abstract_v:
+
+                    # retrieve the real key
+                    real_k = list(params_mapping[abstract_k])[0]
+                    req["files"] = { real_k : ("evil_script",config.EVIL_SCRIPT) }
+
+                __fill_parameters(params_abstract,params_mapping,req)
+                response = execute_request(s,req)
 
             # exploit filesystem attacks
             if attack == 7:
@@ -462,6 +468,8 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                         inputMsg = "Provide value for: {}\n".format(k)
                         new_value = input(inputMsg)
                         req["params"][k] = new_value
+
+                __fill_parameters(params_abstract,params_mapping,req)
                 response = execute_request(s,req)
                 found = __check_response(idx,msc_table,concretization_data,response)
                 if not found:
@@ -482,7 +490,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                         url_evil_file = input("URL of the remote evil script:\n")
                     req["url"] = url_evil_file
 
-
+                __fill_parameters(params_abstract,params_mapping,req)
                 # perform a request to url_evil_file
                 response = execute_request(s,req)
                 url = req["url"]
@@ -501,14 +509,16 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             if attack == -1:
                 logger.info("Perform normal request")
                 logger.debug(msc_table[idx][0])
-                if "params" in req:
-                    for k,v in req["params"].items():
-                        if v == "?":
-                            inputMsg = "Provide value for: {}\n".format(k)
-                            new_value = input(inputMsg)
-                            req["params"][k] = new_value
+                # if "params" in req:
+                #     for k,v in req["params"].items():
+                #         if v == "?":
+                #             inputMsg = "Provide value for: {}\n".format(k)
+                #             new_value = input(inputMsg)
+                #             req["params"][k] = new_value
+                __fill_parameters(params_abstract,params_mapping,req)
                 response = execute_request(s,req)
                 found = __check_response(idx,msc_table,concretization_data,response)
+                logger.debug(response)
                 if not found:
                     logger.critical("Response is not valid")
                     exit(0)
@@ -518,7 +528,16 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
     # end loop over the msc
     logger.info("Trace ended successfully")
 
-
+def __fill_parameters(params_abstract,params_mapping,req):
+    # if we have a ? in the params, ask the user to provide a value
+    # for that parameter. Show the abstract value for better decision
+    # making
+    for abstract_k in params_abstract:
+        real_mapping = params_mapping[abstract_k]
+        for real_k in real_mapping:
+            if real_mapping[real_k] == "?":
+                real_v = input("provide value for parameter {} (abstract value {})\n".format(real_k,params_abstract[abstract_k]))
+                req["params"][real_k] = real_v
 
 def __ask_file_to_show(files):
     selection = ""

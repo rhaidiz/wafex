@@ -69,6 +69,7 @@ def execute_request(s,request):
         else:
             r = s.post(url, data = params, verify=False, files=files, cookies=cookies,auth=('regis','password'))
 
+    logger.debug(r.text)
     return r
 
 """

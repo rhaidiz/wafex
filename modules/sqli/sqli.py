@@ -120,7 +120,7 @@ def sqli(msc_table,extended):
                     so_cond3 = True
                 # param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
                 # params = param_regexp.findall(msg)
-
+                print(msg)
                 params = utils.__get_parameters(msg)
                 entry = { "attack" : 6, "params" : params }
                 # create a multiple array with params from different lines
