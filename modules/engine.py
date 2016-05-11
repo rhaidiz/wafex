@@ -147,15 +147,15 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 if not c:
                     logger.info("Aborting execution")
                     exit(0)
-                so_tag = attack_details["so_tag"]
+                tag_so = attack_details["tag_so"]
                 so_step = None
                 for item in msc_table:
-                    if item[0] == so_tag:
+                    if item[0] == tag_so:
                         so_step = item
-                        debugMsg = "Exploiting so in {} and {}:{}".format(tag,so_tag,item)
+                        debugMsg = "Exploiting so in {} and {}:{}".format(tag,tag_so,item)
                         logger.debug(debugMsg)
                         break
-                req["secondOrder"] = concretization_data[so_tag]["url"]
+                req["secondOrder"] = concretization_data[tag_so]["url"]
 
                 sqli.execute_sqlmap(req)
                 continue
@@ -195,7 +195,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                         req["params"] = {}
                         for k,v in page["postdata"].items():
                             req["params"][k] = v
-                        __fill_parameters(params_abstract,params_mapping,req)
+                        #__fill_parameters(params_abstract,params_mapping,req)
                         response = execute_request(s,req)
                         pathname = url.replace("http://","").replace("https://","").replace("/","_")
 
@@ -261,64 +261,55 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
 
                 continue
 
+            if attack == 10:
+                # authentication bypass
+                logger.info("Perform authentication bypass attack!")
+
+                pages = msc_table[idx+1][1][2].split(".")
+                check = concretization_data[pages[0]] # baaad, we assume that position 0 is always the page we're looking for
+                is_bypassed = sqli.execute_bypass(s,req,check)
+                if is_bypassed:
+                    logger.info("bypass succeeded")
+                else:
+                    logger.info("bypass error, abort execution")
+                    exit(0)
+
 
             # SQL-injection
             if attack == 0:
                 # data extraction
-                logger.debug(params)
-                if params != None:
-                   logger.info("Perform data extraction attack!")
+                logger.info("Perform data extraction attack!")
 
-                   # get the table and columns to be enumarated
-                   extract = []
-                   exploitations = attack_details["params"]
-                   debugMsg = "Exploitations: {}".format(exploitations)
-                   logger.debug(debugMsg)
-                   for i,tag2 in enumerate(exploitations):
-                         exploit_points = exploitations[tag2]
-                         for k in exploit_points:
-                             try:
-                                 tmp_map = concretization_data[tag2]["params"][k].split("=")[0]
-                             except KeyError:
-                                 tmp_map = concretization_data[tag2]["cookies"][k].split("=")[0]
-                             tmp_table = concretization_data[tag2]["tables"][tmp_map]
-                             extract.append(tmp_table)
+                # get the table and columns to be enumarated
+                extract = []
+                exploitations = attack_details["params"]
+                debugMsg = "Exploitations: {}".format(exploitations)
+                logger.debug(debugMsg)
+                for i,tag2 in enumerate(exploitations):
+                      exploit_points = exploitations[tag2]
+                      for k in exploit_points:
+                          try:
+                              tmp_map = concretization_data[tag2]["params"][k].split("=")[0]
+                          except KeyError:
+                              tmp_map = concretization_data[tag2]["cookies"][k].split("=")[0]
+                          tmp_table = concretization_data[tag2]["tables"][tmp_map]
+                          extract.append(tmp_table)
 
-                   req["extract"] = extract
-                   # for the execution we need (url,method,params,data_to_extract)
-                   # data_to_extract => table.column
-                   # sqlmap_data = execute_sqlmap(url,method,params,data_to_extract)
-                   sqlmap_data, sqlmap_log = sqli.execute_sqlmap(req)
+                req["extract"] = extract
+                # for the execution we need (url,method,params,data_to_extract)
+                # data_to_extract => table.column
+                # sqlmap_data = execute_sqlmap(url,method,params,data_to_extract)
+                sqlmap_data, sqlmap_log = sqli.execute_sqlmap(req)
 
-                   sqlmap_output = sqli.sqlmap_parse_data_extracted(sqlmap_data)
-                   # check if the last message from sqlmap was an error or critical
-                   debugMsg = "sqlmap log {}".format(sqlmap_log)
-                   logger.debug(debugMsg)
-                   logger.debug(sqlmap_data)
-                   if not sqlmap_data:
-                       logger.warning("No data extracted from the database")
-                       exit()
-                # authentication bypass
-                else:
-                   logger.info("Perform authentication bypass attack!")
-                   req = {}
-                   req["url"] = concretization_data[tag]["url"]
-                   req["method"] = concretization_data[tag]["method"]
-                   # now create the params
-                   params = {}
-                   for k,v in concretization_data[tag]["params"].items():
-                       tmp = v.split("=")
-                       params[tmp[0]] = tmp[1]
-                   req["params"] = params
+                sqlmap_output = sqli.sqlmap_parse_data_extracted(sqlmap_data)
+                # check if the last message from sqlmap was an error or critical
+                debugMsg = "sqlmap log {}".format(sqlmap_log)
+                logger.debug(debugMsg)
+                logger.debug(sqlmap_data)
+                if not sqlmap_data:
+                    logger.warning("No data extracted from the database")
+                    exit()
 
-                   pages = msc_table[idx+1][1][2].split(".")
-                   check = concretization_data[pages[0]] # baaad, we assume that position 0 is always the page we're looking for
-                   is_bypassed = sqli.execute_bypass(s,req,check)
-                   if is_bypassed:
-                       logger.info("bypass succeeded")
-                   else:
-                       logger.info("bypass error, abort execution")
-                       exit(0)
                 continue
 
             # exploit the sqli as a normal request
@@ -479,9 +470,10 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
 
 
             if attack == 9:
+                logger.info("Exploiting remote shell!")
+
                 debugMsg = "We are exploiting a remote shell for file reading {}".format(message)
                 logger.debug(debugMsg)
-
 
                 if req["url"] == "":
                     # we need to know the URL of the file we just uploaded
@@ -526,7 +518,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 continue
 
     # end loop over the msc
-    logger.info("Trace ended successfully")
+    logger.info("Execution of the AAT ended!")
 
 def __fill_parameters(params_abstract,params_mapping,req):
     # if we have a ? in the params, ask the user to provide a value

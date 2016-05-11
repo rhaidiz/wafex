@@ -56,12 +56,17 @@ def sqli(msc_table,extended):
     r_sqli_write     = re.compile("(?:.*?)sqli\.evil_file(?:.*?)")
     r_sqli_read      = re.compile("(?:.*?[^tuple(])sqli\.([a-z]*)\.")
 
+
+    # data extraction
+    tag_extraction = ""
+    
+
     # second-order conditions
     so_cond1 = False # i -> webapp : <something>.sqli.<something>
     so_cond2 = False # i -> webapp : <something>
     so_cond3 = False # webapp -> i : tuple(<something>.sqli.<something>
     tag_so_cond1 = ""
-    so_tag    = ""
+    tag_so    = ""
 
 
     for idx, row in enumerate(msc_table):
@@ -93,15 +98,19 @@ def sqli(msc_table,extended):
                         tag_so_cond1 = tag
                         logger.debug("SO so_cond1")
                     params = utils.__get_parameters(msg)
-                    entry = { "attack":0, "params" : params }
-                else:
-                    if tag not in extended and tag != "tag":
+                    entry = { "attack":10, "params" : params }
+                    tag_extraction = tag
+                elif r_tuple_request.search(msg):
+                    # it means we are using again the function tuple so it
+                    # was a data extraction attack
+                    extended[tag_extraction]["attack"] = 0
+                elif tag not in extended and tag != "tag":
                         # this is a normal request ...
                         # we check if previous conditions for so are valid
                         if so_cond1 == True and so_cond2 == False:
                             logger.debug("SO so_cond2")
                             so_cond2 = True
-                            so_tag = tag
+                            tag_so = tag
                         params = utils.__get_parameters(msg)
                         entry = {"attack":-1,"params":params}
                         debugMsg = "Normal request: {} params {}".format(tag, params)
@@ -116,13 +125,13 @@ def sqli(msc_table,extended):
                     logger.debug("SO so_cond3")
                     # we check if previous conditions for so are valid
                     extended[tag_so_cond1]["attack"] = 8
-                    extended[tag_so_cond1]["so_tag"] = so_tag
+                    extended[tag_so_cond1]["tag_so"] = tag_so
                     so_cond3 = True
                 # param_regexp = re.compile(r'\.?([a-zA-Z]*?)\.tuple')
                 # params = param_regexp.findall(msg)
-                print(msg)
-                params = utils.__get_parameters(msg)
-                entry = { "attack" : 6, "params" : params }
+                # print(msg)
+                # params = utils.__get_parameters(msg)
+                # entry = { "attack" : 6, "params" : params }
                 # create a multiple array with params from different lines
                 # t = msc_table[injection_point][0]
                 # extended[t]["params"] = {tag:params}
@@ -285,7 +294,7 @@ def execute_sqlmap(sqlmap_details):
         logger.critical(message)
         logger.critical("Aborting execution")
         exit()
-    
+
     logger.info("sqlmap analysis terminated")
 
     return sqlmap_data, sqlmap_log
