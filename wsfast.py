@@ -100,8 +100,9 @@ def main():
          # read the output and parse it
          msc_table = mc.parse_msc(msc_output)
          concretization_json = {}
-         sqli_matrix = sqli(msc_table,concretization_json)
-         fs_matrix = filesystem(msc_table,concretization_json)
+         utils.bootstrat(msc_table,concretization_json)
+         sqli(msc_table,concretization_json)
+         filesystem(msc_table,concretization_json)
          logger.info(concretization_json)
 
          # execute the attack trace

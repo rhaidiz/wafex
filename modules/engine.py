@@ -285,6 +285,9 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 exploitations = attack_details["params"]
                 debugMsg = "Exploitations: {}".format(exploitations)
                 logger.debug(debugMsg)
+
+                # get the parameters to extract
+                print(exploitations)
                 for i,tag2 in enumerate(exploitations):
                       exploit_points = exploitations[tag2]
                       for k in exploit_points:

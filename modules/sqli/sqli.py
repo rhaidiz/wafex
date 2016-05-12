@@ -52,7 +52,7 @@ def sqli(msc_table,extended):
     # regexp
     r_sqli           = re.compile("(?:.*?[^tuple(])\.?sqli\.(?:.*)\.?")
     r_tuple_response = re.compile("(?:.*?)\.?tuple\(")
-    r_tuple_request  = re.compile("(?:.*?)tuple(:?.*?)\)")
+    r_tuple_request  = re.compile("\.(.*?)\.s\.tuple(:?.*?)\))")
     r_sqli_write     = re.compile("(?:.*?)sqli\.evil_file(?:.*?)")
     r_sqli_read      = re.compile("(?:.*?[^tuple(])sqli\.([a-z]*)\.")
 
@@ -104,6 +104,10 @@ def sqli(msc_table,extended):
                     # it means we are using again the function tuple so it
                     # was a data extraction attack
                     extended[tag_extraction]["attack"] = 0
+                    extended[tag_extraction]["extract"] 
+                    params = utils.__get_parameters(msg)
+                    entry = { "attack" : 6, "params" : params }
+                    extended[tag] = entry
                 elif tag not in extended and tag != "tag":
                         # this is a normal request ...
                         # we check if previous conditions for so are valid
