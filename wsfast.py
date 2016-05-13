@@ -11,6 +11,7 @@ import config
 import os.path
 import argparse
 import logging
+import modules.utils as utils
 
 from modules.filesystem.fs import filesystem
 from modules.sqli.sqli import sqli
@@ -99,14 +100,16 @@ def main():
     if not args.mc_only:
          # read the output and parse it
          msc_table = mc.parse_msc(msc_output)
-         concretization_json = {}
-         utils.bootstrat(msc_table,concretization_json)
-         sqli(msc_table,concretization_json)
-         filesystem(msc_table,concretization_json)
-         logger.info(concretization_json)
+         debugMsg = "msc_table {}".format(msc_table)
+         logger.debug(debugMsg)
+         attack_details = {}
+         utils.bootstrap(msc_table,attack_details)
+         sqli(msc_table,attack_details)
+         filesystem(msc_table,attack_details)
+         logger.info(attack_details)
 
          # execute the attack trace
-         execute_attack(msc_table,concretization_json,load_model)
+         execute_attack(msc_table,attack_details,load_model)
 
 
 

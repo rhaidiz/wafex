@@ -9,6 +9,7 @@ NOTE: Only tested with python3.5
 
 import time
 import json
+import time
 import atexit
 import shutil
 import pexpect
@@ -35,6 +36,7 @@ def run_api_server():
     # NOTE: when executing sqlmapapi.py the working directory must be ./sqlmap/ otherwise when the analysis
     # is started, it raises a not file execeptio 'cause it cannot find sqlmap.py
     sqlmap_process = subprocess.Popen(SQLMAP_API.split(" "),stderr=subprocess.PIPE, stdout=subprocess.PIPE,cwd="./sqlmap/")
+    time.sleep(2)
     while True:
         line = sqlmap_process.stdout.readline()
         if "REST-JSON API server connected to IPC database" in line.decode('utf-8'):

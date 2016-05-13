@@ -52,14 +52,14 @@ def sqli(msc_table,extended):
     # regexp
     r_sqli           = re.compile("(?:.*?[^tuple(])\.?sqli\.(?:.*)\.?")
     r_tuple_response = re.compile("(?:.*?)\.?tuple\(")
-    r_tuple_request  = re.compile("\.(.*?)\.s\.tuple(:?.*?)\))")
+    r_tuple_request  = re.compile("([a-z]*?)\.s\.tuple\((?:.*?)\)(?:\.s)?")
     r_sqli_write     = re.compile("(?:.*?)sqli\.evil_file(?:.*?)")
-    r_sqli_read      = re.compile("(?:.*?[^tuple(])sqli\.([a-z]*)\.")
+    r_sqli_read      = re.compile("(?:.*?[^tuple(])\.s\.sqli\.([a-zA-Z]*)\.")
 
 
     # data extraction
     tag_extraction = ""
-    
+
 
     # second-order conditions
     so_cond1 = False # i -> webapp : <something>.sqli.<something>
@@ -86,11 +86,16 @@ def sqli(msc_table,extended):
                 # sqli for file writing
                 params = utils.__get_parameters(msg)
                 entry = {"attack":2, "params" : params }
+                extended[tag]["attack"] = 2
+
             else:
                 f = r_sqli_read.search(msg)
                 if f:
                     # sqli for file reading
+                    file_to_read = f.group(1)
                     entry = {"attack":1,"params":{f.group(1)}}
+                    extended[tag]["attack"] = 1
+                    extended[tag]["read"] = file_to_read
                 elif r_sqli.search(msg):
                     if so_cond1 == False:
                         # we check if previous conditions for so are valid
@@ -99,16 +104,25 @@ def sqli(msc_table,extended):
                         logger.debug("SO so_cond1")
                     params = utils.__get_parameters(msg)
                     entry = { "attack":10, "params" : params }
+                    extended[tag]["attack"] = 10
+
                     tag_extraction = tag
-                elif r_tuple_request.search(msg):
-                    # it means we are using again the function tuple so it
-                    # was a data extraction attack
-                    extended[tag_extraction]["attack"] = 0
-                    extended[tag_extraction]["extract"] 
-                    params = utils.__get_parameters(msg)
-                    entry = { "attack" : 6, "params" : params }
-                    extended[tag] = entry
-                elif tag not in extended and tag != "tag":
+                else:
+                    exploit_sqli = r_tuple_request.findall(msg)
+                    if exploit_sqli:
+                        debugMsg = "exploit_sqli {}".format(exploit_sqli)
+                        logger.debug(debugMsg)
+
+                        # it means we are using again the function tuple so it
+                        # was a data extraction attack
+                        extended[tag_extraction]["attack"] = 0
+                        extended[tag_extraction]["extract"] = exploit_sqli
+                        extended[tag_extraction]["tag_extraction"] = tag
+                        params = utils.__get_parameters(msg)
+                        entry = { "attack" : 6, "params" : params }
+
+                        extended[tag]["attack"] = 6
+                    elif tag != "tag":
                         # this is a normal request ...
                         # we check if previous conditions for so are valid
                         if so_cond1 == True and so_cond2 == False:
@@ -117,6 +131,8 @@ def sqli(msc_table,extended):
                             tag_so = tag
                         params = utils.__get_parameters(msg)
                         entry = {"attack":-1,"params":params}
+
+                        extended[tag]["attack"] = -1
                         debugMsg = "Normal request: {} params {}".format(tag, params)
                         logger.debug(debugMsg)
         else:
@@ -144,7 +160,7 @@ def sqli(msc_table,extended):
         if entry != None:
             debugMsg = "entry {} in {}".format(entry,tag)
             logger.debug(debugMsg)
-            extended[tag] = entry
+            # extended[tag] = entry
 
 
 
@@ -226,7 +242,7 @@ def execute_sqlmap(sqlmap_details):
 
     # BEGIN: set specific attack details
     # data extraction
-    if "extract " in sqlmap_details:
+    if "extract" in sqlmap_details:
         data_to_extract = sqlmap_details["extract"]
         sqlmap.set_option("dumpTable","true",task)
         # set data extraction only if we have data to extract

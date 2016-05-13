@@ -51,10 +51,14 @@ def filesystem(msc_table,extended):
                 #entry = {"attack":5,"params":{params.group(1):"evil_file"}}
                 params = utils.__get_parameters(msg)
                 entry = { "attack" : 5, "params" : params }
+
+                extended[tag]["attack"] = 5
             else:
                 if r_evil_file.match(msg):
                     params = utils.__get_parameters(msg)
                     entry = { "attack" : 9, "params" : params }
+
+                    extended[tag]["attack"] = 9
 
                 params = r_path_injection.search(msg)
                 if "evil_file" not in msg and params:
@@ -62,6 +66,7 @@ def filesystem(msc_table,extended):
                     #entry = { "attack" : 4, "params" : { params.group(1) : "?" } }
                     params = utils.__get_parameters(msg)
                     entry = { "attack" : 4, "params" : params }
+                    extended[tag]["attack"] = 4
                 else:
                     payload = r_file.search(msg)
                     if payload:
@@ -74,6 +79,7 @@ def filesystem(msc_table,extended):
                                     extended[tag]["attack"] = 4
                         params = utils.__get_parameters(msg)
                         entry = { "attack" : 7, "params" : params }
+                        extended[tag]["attack"] = 7
                     else:
                         if tag not in extended and tag != "tag":
                             # this is a normal request
@@ -83,13 +89,14 @@ def filesystem(msc_table,extended):
                             logger.debug(debugMsg)
 
                             entry = { "attack" : -1, "params" : params }
+                            extended[tag]["attack"] = -1
                             logger.debug("normal request")
 
         if entry != None:
             debugMsg = "entry {} in {}".format(entry,tag)
             logger.debug(debugMsg)
 
-            extended[tag] = entry
+            # extended[tag] = entry
 
 
 
