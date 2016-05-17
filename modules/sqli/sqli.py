@@ -50,16 +50,14 @@ def sqli(msc_table,extended):
     injection_point = ""
 
     # regexp
-    r_sqli           = re.compile("(?:.*?[^tuple(])\.?sqli\.(?:.*)\.?")
+    r_sqli           = re.compile("(?:.*?)\.?sqli\.(?:.*)\.?")
     r_tuple_response = re.compile("(?:.*?)\.?tuple\(")
     r_tuple_request  = re.compile("([a-z]*?)\.s\.tuple\((?:.*?)\)(?:\.s)?")
-    r_sqli_write     = re.compile("(?:.*?)sqli\.evil_file(?:.*?)")
-    r_sqli_read      = re.compile("(?:.*?[^tuple(])\.s\.sqli\.([a-zA-Z]*)\.")
-
+    r_sqli_read      = re.compile("(?:.*?)e_file\((.*?)\)")
+    r_sqli_write      = re.compile("(?:.*?)newFile\((.*?)\)")
 
     # data extraction
-    tag_extraction = ""
-
+    tag_sqli = ""
 
     # second-order conditions
     so_cond1 = False # i -> webapp : <something>.sqli.<something>
@@ -81,50 +79,52 @@ def sqli(msc_table,extended):
             # is a message from the intruder
             debugMsg = "Processing {}".format(msg)
             logger.debug(debugMsg)
-            if r_sqli_write.search(msg):
-                logger.debug("SQLi file write")
-                # sqli for file writing
-                params = utils.__get_parameters(msg)
-                entry = {"attack":2, "params" : params }
-                extended[tag]["attack"] = 2
 
-            else:
-                f = r_sqli_read.search(msg)
-                if f:
-                    # sqli for file reading
-                    file_to_read = f.group(1)
-                    entry = {"attack":1,"params":{f.group(1)}}
-                    extended[tag]["attack"] = 1
+            if r_sqli.search(msg) and "tuple(" not in msg:
+                if so_cond1 == False:
+                    so_cond1 = True
+                    tag_so_cond1 = tag
+                    logger.debug("SO so_cond1")
+                # get the response
+                response = msc_table[idx+1]
+                # (tag , ( sender, receiver, msg))
+                response_msg = response[1][2]
+                # and check if we have something function of file (sqli for file reading)
+                match_ftr = r_sqli_read.search(response_msg)
+                if match_ftr:
+                    file_to_read = match_ftr.group(1)
                     extended[tag]["read"] = file_to_read
-                elif r_sqli.search(msg):
-                    if so_cond1 == False:
-                        # we check if previous conditions for so are valid
-                        so_cond1 = True
-                        tag_so_cond1 = tag
-                        logger.debug("SO so_cond1")
-                    params = utils.__get_parameters(msg)
-                    entry = { "attack":10, "params" : params }
-                    extended[tag]["attack"] = 10
-
-                    tag_extraction = tag
+                    extended[tag]["attack"] = 1
                 else:
-                    exploit_sqli = r_tuple_request.findall(msg)
-                    if exploit_sqli:
-                        debugMsg = "exploit_sqli {}".format(exploit_sqli)
-                        logger.debug(debugMsg)
-
-                        # it means we are using again the function tuple so it
-                        # was a data extraction attack
-                        extended[tag_extraction]["attack"] = 0
-                        extended[tag_extraction]["extract"] = exploit_sqli
-                        extended[tag_extraction]["tag_extraction"] = tag
+                    # or something function of new_file (sqli for file writing)
+                    match_ftw = r_sqli_write.search(response_msg)
+                    if match_ftw:
+                        file_to_write = match_ftw.group(1)
+                        extended[tag]["write"] = file_to_write
+                        extended[tag]["attack"] = 2
+                    else:
+                    # ... otherwise is a sql injection
                         params = utils.__get_parameters(msg)
-                        entry = { "attack" : 6, "params" : params }
+                        entry = { "attack":10, "params" : params }
+                        extended[tag]["attack"] = 10
+                        tag_sqli = tag
+            else:
+                exploit_sqli = r_tuple_request.findall(msg)
+                if exploit_sqli:
+                    debugMsg = "exploit_sqli {}".format(exploit_sqli)
+                    logger.debug(debugMsg)
+                    # it means we are using again the function tuple so it
+                    # was a data extraction attack
+                    extended[tag_sqli]["attack"] = 0
+                    extended[tag_sqli]["extract"] = exploit_sqli
+                    extended[tag_sqli]["tag_sqli"] = tag
+                    params = utils.__get_parameters(msg)
+                    entry = { "attack" : 6, "params" : params }
 
-                        extended[tag]["attack"] = 6
-                    elif tag != "tag":
-                        # this is a normal request ...
-                        # we check if previous conditions for so are valid
+                    extended[tag]["attack"] = 6
+                elif tag != "tag":
+                    # this is a normal request ...
+                    # we check if previous conditions for so are valid
                         if so_cond1 == True and so_cond2 == False:
                             logger.debug("SO so_cond2")
                             so_cond2 = True
@@ -156,12 +156,6 @@ def sqli(msc_table,extended):
                 # t = msc_table[injection_point][0]
                 # extended[t]["params"] = {tag:params}
                 # extended[tag] = {"attack": 6}
-
-        if entry != None:
-            debugMsg = "entry {} in {}".format(entry,tag)
-            logger.debug(debugMsg)
-            # extended[tag] = entry
-
 
 
 

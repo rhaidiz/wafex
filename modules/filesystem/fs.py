@@ -30,7 +30,7 @@ def filesystem(msc_table,extended):
     # regexp
     r_write_no_sqli  = re.compile("([a-zA-Z]*?)\.s\.evil_file(?:.*?)")
     r_path_injection = re.compile("([a-zA-Z]*?)\.s\.path_injection(?:.*?)")
-    r_file           = re.compile("(?:[a-z]*?)\.s\.e_file\(([a-z]*?)\)")
+    r_file           = re.compile("(?:[a-z]*?)\.s\.e_file\((.*?)\)")
     r_evil_file      = re.compile("^evil_file")
 
     for idx, row in enumerate(msc_table):
@@ -68,14 +68,17 @@ def filesystem(msc_table,extended):
                     entry = { "attack" : 4, "params" : params }
                     extended[tag]["attack"] = 4
                 else:
+                    # The intruder is sending something
+                    # function of file(). Find where
+                    # the file-name was previously used and, if we
+                    # marked the action as normal request (-1), change
+                    # it as file inclusion (4)
                     payload = r_file.search(msg)
-                    if payload:
-                        # The intruder is sending something
-                        # function of file(). Find where
-                        # the file-name was previously used
-                        for tag,attack in extended:
-                            for k,v in attack["params"]:
-                                if payload in v:
+                    if payload and tag == -1:
+                        for tag in extended:
+                            attack = extended[tag]
+                            for k,v in attack["params"].items():
+                                if payload.group(1) in v and tag == -1:
                                     extended[tag]["attack"] = 4
                         params = utils.__get_parameters(msg)
                         entry = { "attack" : 7, "params" : params }
