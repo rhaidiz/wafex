@@ -33,7 +33,7 @@ from os import listdir
 s = None
 
 # global attack domain
-attack_domain = ""
+concretization_domain = ""
 
 # specific for executing sqlmap
 data_to_extract = []
@@ -45,7 +45,7 @@ def exitcleanup():
 # takes an attack trace and an extension matrix, and execute the attack
 def execute_attack(msc_table,msc_table_info,file_aslanpp):
     global s
-    global attack_domain
+    global concretization_domain
     logger.info("Executing the attack trace")
 
 
@@ -56,10 +56,11 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
     method = None
 
     # web application's output
-    sqlmap_output = None
+    sqlmap_output = {} # {"table" : {"column" : [values] }}
     sqlmap_data = None
     sqlmap_log = None
-    files_output = []
+
+    files_output = {} # {"param" : [files_list] }
 
     # request session object for performing subsequent HTTP requests
     s = requests.Session()
@@ -131,7 +132,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             # a remote shell
             req["url"] = concretization_details["url"]
             req["method"] = concretization_details["method"]
-            req["params"]=concrete_params
+            req["params"] = concrete_params
 
             # now create the params
             # req_params = {}
@@ -169,24 +170,31 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             if attack == 4:
                 logger.info("Perform file inclusion attack!")
 
-                pages = msc_table[idx+1][1][2].split(",")
-                check = concretization_data[pages[0]]
+                page = msc_table[idx+1][1][2].split(",")
+                check = concretization_data[page[0]]
 
-                read_file, search = __get_file_to_read(message,concretization_data)
+                abstract_file = attack_details["read"]
+
+                read_file, search = __get_file_to_read(abstract_file,concretization_data)
+
                 debugMsg = "filesystem inclusion: {} we're looking for: {}".format(read_file, search)
                 logger.debug(debugMsg)
+                
                 payloads = fs.payloadgenerator(read_file)
+                
                 debugMsg = "payloads generated: {}".format(payloads)
                 logger.debug(debugMsg)
+                
                 req["payloads"] = payloads
                 req["ss"] = search
-                wfuzz_output = fs.execute_wfuzz(req)
-                if len(wfuzz_output) > 0:
+                tmp_output = fs.execute_wfuzz(req)
+                if len(tmp_output) > 0:
                     # we successfully found something, write it on files and show them to the
                     # user. Save the file in a local structure so that they can be used in further
                     # requests
                     logger.info("saving extracted files")
-                    for page in wfuzz_output:
+                    tmp_files_list = []
+                    for page in tmp_output:
                         url = page["url"]
                         # I should make a request and retrieve the page again
                         req["url"] = url
@@ -203,7 +211,13 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                         logger.debug(debugMsg)
 
                         saved_path = fs.save_extracted_file(pathname,response.text)
-                        files_output.append(saved_path)
+                        tmp_files_list.append(saved_path)
+
+                    # populating the files_output structure
+                    if abstract_file in files_output:
+                        files_output[abstract_file].append(tmp_files_list)
+                    else:
+                        files_output[abstract_file] = tmp_files_list
 
                     logger.debug(files_output)
                     logger.info("Files have been saved")
@@ -218,25 +232,33 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             if attack == 1:
                 logger.info("Perform SQLi attack for file reading!")
 
-                real_file_to_read, search = __get_file_to_read(message, concretization_data)
+                abstract_file = attack_details["read"]
+                
+                real_file_to_read, search = __get_file_to_read(abstract_file, concretization_data)
 
                 infoMsg = "file to read: {}".format(real_file_to_read)
                 logger.info(infoMsg)
 
                 req["read"] = real_file_to_read
                 sqlmap_data, sqlmap_log = sqli.execute_sqlmap(req)
-                debugMsg = "sqlmap_log {}".format(sqlmap_log)
 
                 # extracted files can be found in ~/.sqlmap/output/<attacked_domani>/files/
                 # list extracted file content
-                tmp_files = sqli.get_list_extracted_files(attack_domain)
-                logger.info("The attack performed the following result:")
-
-                for f in tmp_files:
-                    if search in open(f,"r").read():
-                        infoMsg = "File {} contains the {} string".format(f,search)
-                        logger.info(infoMsg)
-                        files_output = files_output + f
+                _files = sqli.get_list_extracted_files(concretization_domain)
+                if search:
+                    for f in _files:
+                        if search in open(f,"r").read():
+                            infoMsg = "File {} contains the {} string".format(f,search)
+                            logger.info(infoMsg)
+                            if abstract_file in files_output:
+                                files_output[abstract_file].append(f)
+                            else:
+                                files_output[abstract_file] = f
+                else:
+                    if abstract_file in files_output:
+                        files_output[abstract_file].append(_files)
+                    else:
+                        files_output[abstract_file] = _files
                 continue
 
             # SQL-injection filesystem WRITE
@@ -374,15 +396,26 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             # exploit filesystem attacks
             if attack == 7:
                 logger.info("Exploit file-system")
-                __ask_file_to_show(files_output)
-                logger.debug(req["params"])
-                for k,v in req["params"].items():
-                    if v == "?":
-                        inputMsg = "Provide value for: {}\n".format(k)
-                        new_value = input(inputMsg)
-                        req["params"][k] = new_value
 
-                __fill_parameters(abstract_params,concrete_params,req)
+                inj_point = attack_details["inj_point"]
+                inverse_mapping = dict(zip(mapping.values(), mapping.keys()))
+                
+                for k,v in req["params"].items():
+                    val = ""
+                    if inverse_mapping[k] in inj_point:
+                        # we should provide something coming from the file we extracted
+                        abstract_value = inj_point[inverse_mapping[k]]
+                        files = files_output[abstract_value]
+                        while val == "":
+                            inputMsg = "Provide value for {} from files {}\n".format(k,files)
+                            val = input(inputMsg)
+                    elif v == "?":
+                        inputMsg = "Provide value for: {}\n".format(k)
+                        while val == "":
+                            val = input(inputMsg)
+                    req["params"][k] = val
+
+                __fill_parameters(abstract_params,concrete_params,mapping, req)
                 response = execute_request(s,req)
                 found = __check_response(idx,msc_table,concretization_data,response)
                 if not found:
@@ -464,17 +497,22 @@ def __ask_file_to_show(files):
     while True:
         i = 0
         for f in files:
-            logger.info("%d) %s", i,f)
+            prompt = "{}) {} : {}".format(i,f,files[f])
+            print(prompt)
             i = i + 1
-        selection = input("Which file you want to open? (d)one\n")
-        if selection == "d":
+        selection = input("Which file you want to open? [d]one\n")
+        if not selection or selection.lower() == "d":
             return
         try:
             index = int(selection)
-            if index < len(files):
-                with open(files[int(selection)],"r") as f:
-                    for line in f:
-                        print(line.rstrip())
+            if index <= len(files):
+                abstract_file = list(files)[index]
+                for af in files[abstract_file]:
+                    print("{}:".format(af))
+                    with open(af,"r") as f:
+                        for line in f:
+                            print(line.rstrip())
+                    print("----------------------------------------")
             else:
                 raise Exception
         except Exception:
@@ -489,22 +527,26 @@ def __show_available_files(files,search):
 
 
 
-def __get_file_to_read(message, concretization_data):
+def __get_file_to_read(abstract_file, concretization_data):
     real_file_to_retrieve = ""
-    if "path_injection" in message:
+    if "path_injection" in abstract_file:
         # it means we prompt the user for the filename
-        real_file_to_retrieve = input("Which file yuo want to read?\n")
+        prompt_msg = "Which file you want to read corresponding to {}?\n".format(abstract_file)
+        real_file_to_retrieve = input(prompt_msg)
     else:
         # get the name of the file to retrieve from the concretization file
         abstract_file_to_retrieve = re.search(r'sqli\.([a-zA-Z]*)',message).group(1)
-        real_file_to_retrieve = concretization_data["files"][abstract_file_to_retrieve]
+        tmp = abstract_file.split(".")[0]
+        real_file_to_retrieve = concretization_data["files"][tmp]
         # and ask the user if it's ok
         c = __ask_yes_no("The file that will be read is: " + real_file_to_retrieve + ", are you sure?")
         if not c:
             # ask the user which file to retrieve
             real_file_to_retrieve = input("Which file you want to read?\n")
     # TODO: ask what regexp we should be looking for
-    search = input("What are you looking for?\n")
+    search = input("What are you looking for in the file? [S]kip?\n")
+    if not search or search.lower() == "s":
+        search = None
     return real_file_to_retrieve, search
 
 def __check_response(idx,msc_table,concretization_data,response):
