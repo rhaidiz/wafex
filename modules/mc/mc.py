@@ -44,7 +44,7 @@ def generate_msc(file_attack_trace,file_aslan_model):
             i = out.find("MESSAGES:")
             msc = out[i+9:]
             logger.info("Abstract Attack Trace found:")
-            logger.info(msc)
+            print(msc)
             return msc
         elif "SUMMARY NO_ATTACK_FOUND" in line:
             # no attack found, we don't need the MSC
@@ -118,7 +118,7 @@ For each step, add the corresponding tag number.
 [ (tag#,(actor1,actor2,message)), ... ]
 """
 def parse_msc(aat):
-    logger.debug("starting MSC")
+    logger.info("Parsing the Message Sequence Chart")
     msc = aat.replace(" ","")
     lines = msc.split("\n")
     result = []
@@ -128,7 +128,6 @@ def parse_msc(aat):
     tag = "tag"
     for line in lines:
         if line:
-            logger.debug(line)
             tmp_request = request_regexp.match(line)
             tmp_response = None
             #if not tmp_request: # not a request
@@ -136,16 +135,10 @@ def parse_msc(aat):
             #    tmp_response = response_regexp.match(line)
             if tmp_request:
                 # we have found a request
-                debugMsg = "request found: {}".format(tmp_request)
-                logger.debug(debugMsg)
                 result.append((tag + tmp_request.group(4),(tmp_request.group(1),tmp_request.group(2),tmp_request.group(3))))
             else:
                 tmp_response = response_regexp.match(line)
                 if tmp_response:
                     # we have found a response
-                    debugMsg = "response found: {}".format(tmp_request)
-                    logger.debug(debugMsg)
                     result.append((tag,(tmp_response.group(1),tmp_response.group(2),tmp_response.group(3))))
-    logger.debug(result)
-    logger.debug("################")
     return result

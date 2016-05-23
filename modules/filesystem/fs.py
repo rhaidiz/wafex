@@ -23,9 +23,8 @@ extended: is a JSON structure that extendes the msc_table for concretizing
             attacks
 """
 def filesystem(msc_table,extended):
-    logger.debug("Starting extend_trace_filesystem")
+    logger.info("Looking for file-system attacks")
     fs = []
-    logger.debug(extended)
 
     # regexp
     r_write_no_sqli  = re.compile("([a-zA-Z]*?)\.s\.evil_file(?:.*?)")
@@ -50,12 +49,18 @@ def filesystem(msc_table,extended):
             if params:
                 # is a malicious file-write (upload)
                 #entry = {"attack":5,"params":{params.group(1):"evil_file"}}
+                debugMsg = "Unrestricted file upload {}".format(tag)
+                logger.debug(debugMsg)
+
                 params = utils.__get_parameters(msg)
                 entry = { "attack" : 5, "params" : params }
 
                 extended[tag]["attack"] = 5
             else:
                 if r_evil_file.match(msg):
+                    debugMsg = "Exploiting evil_file {}".format(tag)
+                    logger.debug(debugMsg)
+
                     params = utils.__get_parameters(msg)
                     entry = { "attack" : 9, "params" : params }
                     extended[tag]["attack"] = 9
@@ -81,29 +86,39 @@ def filesystem(msc_table,extended):
                         for k,v in attack["params"].items():
                             if _tag != tag and payload.group(2) in v and extended[_tag]["attack"] == -1:
                                 extended[_tag]["attack"] = 4
+
+                                debugMsg = "File inclusion vulnerability {}".format(tag)
+                                logger.debug(debugMsg)
+
                     params = utils.__get_parameters(msg)
                     extended[tag]["attack"] = 7
                     extended[tag]["inj_point"] = {payload.group(1):payload.group(2)}
+
+                    debugMsg = "Exploit file extracted {}".format(tag)
+                    logger.debug(debugMsg)
                 else:
                     if tag not in extended and tag != "tag":
                         # this is a normal request
                         params = utils.__get_parameters(msg)
+                        entry = { "attack" : -1, "params" : params }
+                        extended[tag]["attack"] = -1
 
                         debugMsg = "Normal request: {} params {}".format(tag, params)
                         logger.debug(debugMsg)
-
-                        entry = { "attack" : -1, "params" : params }
-                        extended[tag]["attack"] = -1
-                        logger.debug("normal request")
         else:
             # we are in the receiving part
             msg_result = msg.split(",")[1]
             payload = r_e_file.search(msg_result)
+            # check if something function of file is sent back to the intruder
             if payload:
                 for _tag in extended:
                     attack = extended[_tag]
                     for k,v in attack["params"].items():
                         if _tag != tag and payload.group(1) in v and extended[_tag]["attack"] == -1:
+                            
+                            debugMsg = "File inclusion vulnerability {}".format(_tag)
+                            logger.debug(debugMsg)
+                            
                             extended[_tag]["attack"] = 4
                             extended[_tag]["read"] = payload.group(1)
 
@@ -114,7 +129,8 @@ def execute_wfuzz(fuzzer_details):
     # set default parameters
     fuzzer.set_param("--basic","regis:password")
     fuzzer.set_param("-o","json")
-    fuzzer.set_param("--ss",fuzzer_details["ss"])
+    if fuzzer_details["ss"] != None:
+        fuzzer.set_param("--ss",fuzzer_details["ss"])
     # we need to write a file with the payload to pass to wfuzz
     f = open("wfuzz_payloads","w")
     for p in fuzzer_details["payloads"]:
@@ -139,7 +155,7 @@ def execute_wfuzz(fuzzer_details):
 
 
 def save_extracted_file(name,text):
-    filepath = os.path.join(".", name)
+    filepath = os.path.join(config.WFAST_EXTRACTED_FILES_DIR,name)
     try:
         f = open(filepath,"w")
         f.write(text)

@@ -18,7 +18,6 @@ from modules.logger import logger
 
 
 WFUZZ          = ["./wfuzz.py"]
-wfuzz_process      = None
 
 
 

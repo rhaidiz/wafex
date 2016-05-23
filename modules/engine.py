@@ -179,12 +179,12 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
 
                 debugMsg = "filesystem inclusion: {} we're looking for: {}".format(read_file, search)
                 logger.debug(debugMsg)
-                
+
                 payloads = fs.payloadgenerator(read_file)
-                
+
                 debugMsg = "payloads generated: {}".format(payloads)
                 logger.debug(debugMsg)
-                
+
                 req["payloads"] = payloads
                 req["ss"] = search
                 tmp_output = fs.execute_wfuzz(req)
@@ -233,7 +233,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 logger.info("Perform SQLi attack for file reading!")
 
                 abstract_file = attack_details["read"]
-                
+
                 real_file_to_read, search = __get_file_to_read(abstract_file, concretization_data)
 
                 infoMsg = "file to read: {}".format(real_file_to_read)
@@ -271,7 +271,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 prompt = "Do you want to procede?"
                 c = __ask_yes_no(prompt)
                 if not c:
-                    logger.info("Aborting excution")
+                    logger.warning("Aborting excution")
                     exit()
 
                 # we are uploading a remote shell for file reading
@@ -292,9 +292,9 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 print(req)
                 is_bypassed = sqli.execute_bypass(s,req,check)
                 if is_bypassed:
-                    logger.info("bypass succeeded")
+                    logger.info("Bypass succeeded!")
                 else:
-                    logger.info("bypass error, abort execution")
+                    logger.error("Bypass unsuccessful, abort execution!")
                     exit(0)
 
 
@@ -309,8 +309,8 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 logger.debug(debugMsg)
 
                 # get the parameters to extract
-                print(exploitations)
-                print(attack_details["extract"])
+                # print(exploitations)
+                # print(attack_details["extract"])
                 #for i,tag2 in enumerate(exploitations):
                 #      exploit_points = exploitations[tag2]
                 #      for k in exploit_points:
@@ -395,11 +395,11 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
 
             # exploit filesystem attacks
             if attack == 7:
-                logger.info("Exploit file-system")
+                logger.info("Exploit extracted files")
 
                 inj_point = attack_details["inj_point"]
                 inverse_mapping = dict(zip(mapping.values(), mapping.keys()))
-                
+
                 for k,v in req["params"].items():
                     val = ""
                     if inverse_mapping[k] in inj_point:
@@ -428,7 +428,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 #TODO: it would be nice to implement a scraper that scrapes the
                 # web app and try to find where the file has been uploaded
                 logger.info("Exploiting remote shell!")
-                logger.warning("Feature not completely implemented")
+                logger.warning("Feature still under develpment!")
 
                 debugMsg = "We are exploiting a remote shell for file reading {}".format(message)
                 logger.debug(debugMsg)
@@ -458,13 +458,6 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
             # we consider Forced browsing e File upload as normal requests
             if attack == -1:
                 logger.info("Perform normal request")
-                logger.debug(msc_table[idx][0])
-                # if "params" in req:
-                #     for k,v in req["params"].items():
-                #         if v == "?":
-                #             inputMsg = "Provide value for: {}\n".format(k)
-                #             new_value = input(inputMsg)
-                #             req["params"][k] = new_value
                 __fill_parameters(abstract_params,concrete_params,req)
                 response = execute_request(s,req)
                 found = __check_response(idx,msc_table,concretization_data,response)
@@ -488,7 +481,7 @@ def __fill_parameters(abstract, init, mapping, req):
             ab_k = inverse_mapping[real_p]
             if "?" in abstract[ab_k]:
                 # provide value for that parameter
-                val = input("provide value for parameter {} (abstract value {})\n".format(real_k,abstract_params[abstract_k]))
+                val = input("Provide value for parameter {} (abstract value {})\n".format(real_k,abstract_params[abstract_k]))
                 req["params"][real_k] = val
 
 
@@ -543,7 +536,7 @@ def __get_file_to_read(abstract_file, concretization_data):
         if not c:
             # ask the user which file to retrieve
             real_file_to_retrieve = input("Which file you want to read?\n")
-    # TODO: ask what regexp we should be looking for
+    # TODO: ask for regexp
     search = input("What are you looking for in the file? [S]kip?\n")
     if not search or search.lower() == "s":
         search = None

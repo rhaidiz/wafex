@@ -63,12 +63,22 @@ def main():
     elif not args.mc_only and args.c != None and  os.path.isfile(args.c):
         config.concretization = args.c
 
+    print(config.BANNER.format(config.VERSION,config.SITE))
+
     # register exiting cleanup function
     atexit.register(exitcleanup)
 
     # set global variables
     config.verbosity = args.verbose
     config.DEBUG = args.debug
+
+    # create folders if they do not exists
+    if not os.path.isdir(config.WFAST_HOME):
+        logger.info("Creating {} home folder".format(config.TOOL_NAME))
+        os.makedirs(config.WFAST_HOME)
+    if not os.path.isdir(config.WFAST_EXTRACTED_FILES_DIR):
+        logger.info("Creating {} extracted files folder".format(config.TOOL_NAME))
+        os.makedirs(config.WFAST_EXTRACTED_FILES_DIR)
 
     if config.DEBUG:
         logger.setLevel(logging.DEBUG)
@@ -100,13 +110,17 @@ def main():
     if not args.mc_only:
          # read the output and parse it
          msc_table = mc.parse_msc(msc_output)
-         debugMsg = "msc_table {}".format(msc_table)
+
+         debugMsg = "msc_table:\n{}".format(msc_table)
          logger.debug(debugMsg)
+
          attack_details = {}
          utils.bootstrap(msc_table,attack_details)
          sqli(msc_table,attack_details)
          filesystem(msc_table,attack_details)
-         logger.info(attack_details)
+
+         debugMsg = "Attaack details:\n{}".format(attack_details)
+         logger.debug(debugMsg)
 
          # execute the attack trace
          execute_attack(msc_table,attack_details,load_model)

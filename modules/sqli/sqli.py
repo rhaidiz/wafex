@@ -45,7 +45,7 @@ extended: is a JSON structure that extendes the msc_table for concretizing
             attacks
 """
 def sqli(msc_table,extended):
-    logger.debug("Starting extend_trace_sqli")
+    logger.info("Looking for SQL injection attacks")
     sqli = []
     injection_point = ""
 
@@ -84,14 +84,15 @@ def sqli(msc_table,extended):
                 if so_cond1 == False:
                     so_cond1 = True
                     tag_so_cond1 = tag
-                    logger.debug("SO so_cond1")
+                    logger.debug("so_cond1")
                 # get the response
                 response = msc_table[idx+1]
-                # (tag , ( sender, receiver, msg))
-                response_msg = response[1][2]
+                response_msg = response[1][2]   # (tag , ( sender, receiver, msg))
                 # and check if we have something function of file (sqli for file reading)
                 match_ftr = r_sqli_read.search(response_msg)
                 if match_ftr:
+                    logger.debug("SQLi file-read {}".format(tag))
+
                     file_to_read = match_ftr.group(1)
                     extended[tag]["read"] = file_to_read
                     extended[tag]["attack"] = 1
@@ -99,11 +100,15 @@ def sqli(msc_table,extended):
                     # or something function of new_file (sqli for file writing)
                     match_ftw = r_sqli_write.search(response_msg)
                     if match_ftw:
+                        logger.debug("SQLi file-write {}".format(tag))
+                        
                         file_to_write = match_ftw.group(1)
                         extended[tag]["write"] = file_to_write
                         extended[tag]["attack"] = 2
                     else:
                     # ... otherwise is a sql injection
+                        logger.debug("SQLi bypass {}".format(tag))
+                        
                         params = utils.__get_parameters(msg)
                         entry = { "attack":10, "params" : params }
                         extended[tag]["attack"] = 10
@@ -111,10 +116,12 @@ def sqli(msc_table,extended):
             else:
                 exploit_sqli = r_tuple_request.findall(msg)
                 if exploit_sqli:
-                    debugMsg = "exploit_sqli {}".format(exploit_sqli)
+                    debugMsg = "Exploit SQLi {}".format(exploit_sqli)
                     logger.debug(debugMsg)
                     # it means we are using again the function tuple so it
                     # was a data extraction attack
+                    debugMsg = "Change SQLi of {} to data extraction".format(tag_sqli)
+                    logger.debug(debugMsg)
                     extended[tag_sqli]["attack"] = 0
                     extended[tag_sqli]["extract"] = exploit_sqli
                     extended[tag_sqli]["tag_sqli"] = tag
@@ -126,23 +133,21 @@ def sqli(msc_table,extended):
                     # this is a normal request ...
                     # we check if previous conditions for so are valid
                         if so_cond1 == True and so_cond2 == False:
-                            logger.debug("SO so_cond2")
+                            logger.debug("so_cond2")
                             so_cond2 = True
                             tag_so = tag
+                        logger.debug("Normal request {}".format(tag))
                         params = utils.__get_parameters(msg)
                         entry = {"attack":-1,"params":params}
 
                         extended[tag]["attack"] = -1
-                        debugMsg = "Normal request: {} params {}".format(tag, params)
-                        logger.debug(debugMsg)
         else:
             debugMsg = "Processing {}".format(msg)
             logger.debug(debugMsg)
             if r_tuple_response.search(msg):
                 # we are exploiting a sqli
-                logger.debug("so_cond1 {} so_cond2 {} so_cond3 {}".format(so_cond1,so_cond2,so_cond3))
                 if so_cond1 == True and so_cond2 == True and so_cond3 == False:
-                    logger.debug("SO so_cond3")
+                    logger.debug("so_cond3")
                     # we check if previous conditions for so are valid
                     extended[tag_so_cond1]["attack"] = 8
                     extended[tag_so_cond1]["tag_so"] = tag_so
