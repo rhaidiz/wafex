@@ -16,10 +16,9 @@ Supported features:
  - SQLi for file reading
  - file inclusion attacks
  - expoitation of file content extracted
-
-To verify:
  - SQLi for file writing
  - filesystem attack implementation
+
 
 Not yet supported:
  - GUI
