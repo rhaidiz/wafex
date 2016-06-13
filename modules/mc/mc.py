@@ -24,6 +24,16 @@ Generates the message sequence chart
 from an attack trace file and the ASLan model
 """
 def generate_msc(file_attack_trace,file_aslan_model):
+    
+    r_time = re.compile("STATISTICS TIME (.*)")
+    r_tested = re.compile("TESTED (.*)")
+    r_reached = re.compile("REACHED (.*)")
+    r_reading = re.compile("READING (.*)")
+    r_analyze = re.compile("ANALYSE (.*)")
+    r_unused = re.compile("UNUSED: { (.*)")
+    r_end_unused = re.compile("(.*) }")
+    unused_flag = 0
+    
     tmp_attack_trace = ""
     p1 = subprocess.Popen(["java","-jar",connector,"-ar",file_attack_trace,file_aslan_model],universal_newlines=True,stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     try:
@@ -39,6 +49,7 @@ def generate_msc(file_attack_trace,file_aslan_model):
         msc_verbose.close()
     f = open(file_attack_trace)
     for line in f.readlines():
+        line = line.strip()
         if "SUMMARY ATTACK_FOUND" in line:
             # we found an attack, so return the generated MSC
             i = out.find("MESSAGES:")
@@ -49,7 +60,39 @@ def generate_msc(file_attack_trace,file_aslan_model):
         elif "SUMMARY NO_ATTACK_FOUND" in line:
             # no attack found, we don't need the MSC
             logger.warning("NO ATTACK FOUND")
-            return ""
+        else:
+            tested = r_tested.search(line)
+            if tested:
+                infoMsg = "TESTED: {}".format(tested.group(1))
+                logger.info(infoMsg)
+                continue
+            reached = r_reached.search(line)
+            if reached:
+                infoMsg = "REACHED: {}".format(reached.group(1))
+                logger.info(infoMsg)
+                continue
+            analyze = r_analyze.search(line)
+            if analyze:
+                infoMsg = "ANALYZE: {}".format(analyze.group(1))
+                logger.info(infoMsg)
+                continue
+            unused = r_unused.search(line)
+            if unused:
+                logger.debug("UNUSED:")
+                logger.debug(unused.group(1))
+                unused_flag = 1
+                continue
+            else: 
+                last_line_unused = r_end_unused.search(line)
+                if last_line_unused:
+                    # last line of the unused
+                    logger.debug(last_line_unused.group(1))
+                    unused_flag = 0
+                    continue
+                elif unused_flag == 1:
+                    # keep reading next files
+                    logger.debug(line)
+                    continue
 
 """
 Execute the CL-Atse model checker locally
