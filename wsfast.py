@@ -129,9 +129,11 @@ def main():
 
 def exitcleanup():
     # remove temporary files
-    logger.info("Exiting wsfast..., removing temporary files!")
-    for fl in glob.glob("./tmp_*"):
-        os.remove(fl)
+    logger.info("Exiting wsfast...")
+    if not config.DEBUG:
+        logger.info("removing temporary files!")
+        for fl in glob.glob("./tmp_*"):
+            os.remove(fl)
     logger.info("Bye!")
 
 
