@@ -31,6 +31,7 @@ def generate_msc(file_attack_trace,file_aslan_model):
     r_reading = re.compile("READING (.*)")
     r_analyze = re.compile("ANALYSE (.*)")
     r_unused = re.compile("UNUSED: { (.*)")
+    r_goal = re.compile("GOAL: (.*)")
     r_end_unused = re.compile("(.*) }")
     unused_flag = 0
     
@@ -48,6 +49,8 @@ def generate_msc(file_attack_trace,file_aslan_model):
         msc_verbose.write(out)
         msc_verbose.close()
     f = open(file_attack_trace)
+    msc = ""
+    comments = False
     for line in f.readlines():
         line = line.strip()
         if "SUMMARY ATTACK_FOUND" in line:
@@ -56,11 +59,25 @@ def generate_msc(file_attack_trace,file_aslan_model):
             msc = out[i+9:]
             logger.info("Abstract Attack Trace found:")
             print(msc)
-            return msc
         elif "SUMMARY NO_ATTACK_FOUND" in line:
             # no attack found, we don't need the MSC
             logger.warning("NO ATTACK FOUND")
         else:
+            goal = r_goal.search(line)
+            if goal:
+                infoMsg = "GOAL: {}".format(goal.group(1))
+                logger.info(infoMsg)
+                continue
+            if "COMMENTS" in line:
+                comments = True
+                logger.info("COMMENTS")
+                continue
+            if "STATISTICS TIME" in line:
+                comments = False
+                continue
+            if comments == True:
+                print(line)
+                continue
             tested = r_tested.search(line)
             if tested:
                 infoMsg = "TESTED: {}".format(tested.group(1))
@@ -75,7 +92,9 @@ def generate_msc(file_attack_trace,file_aslan_model):
             if analyze:
                 infoMsg = "ANALYZE: {}".format(analyze.group(1))
                 logger.info(infoMsg)
-                continue
+                # I return here because if I reached ANALYZE, I don't care of 
+                # reading the remaning part of the output
+                return msc
             unused = r_unused.search(line)
             if unused:
                 logger.debug("UNUSED:")
@@ -84,7 +103,7 @@ def generate_msc(file_attack_trace,file_aslan_model):
                 continue
             else: 
                 last_line_unused = r_end_unused.search(line)
-                if last_line_unused:
+                if unused_flag == 1 and last_line_unused:
                     # last line of the unused
                     logger.debug(last_line_unused.group(1))
                     unused_flag = 0
@@ -93,6 +112,9 @@ def generate_msc(file_attack_trace,file_aslan_model):
                     # keep reading next files
                     logger.debug(line)
                     continue
+    # this return is for safety reason. Theoretically it should always
+    # return when ANALYZE is found
+    return msc
 
 """
 Execute the CL-Atse model checker locally
