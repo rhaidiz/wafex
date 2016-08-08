@@ -322,7 +322,7 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 #          extract.append(tmp_table)
 
                 extract = []
-                tag_extract = attack_details["tag_extraction"]
+                tag_extract = attack_details["tag_sqli"]
                 tables_to_extract = concretization_data[tag_extract]["tables"]
                 for t in tables_to_extract:
                     extract.append(tables_to_extract[t])
@@ -381,15 +381,18 @@ def execute_attack(msc_table,msc_table_info,file_aslanpp):
                 # param_abstract => { abk -> abv }
                 # param_mapping  => { abk -> { realk -> readv } }
                 # retrieve the abstract key
-                abstract_k = list(abstract_params)[0]
-                abstract_v = abstract_params[abstract_k]
-                if "evil_file" in abstract_v:
-                    # retrieve the real key
-                    real_k = mapping[abstract_k]
-                    # remove real_k from the parameters list, to avoind
-                    # __fili_parameters to ask a value for it
-                    del(req["params"][real_k])
-                    req["files"] = { real_k : ("evil_script",config.EVIL_SCRIPT) }
+                for abstract_k in abstract_params:
+                    abstract_v = abstract_params[abstract_k]
+                    if "evil_file" in abstract_v:
+                        # retrieve the real key
+                        real_k = mapping[abstract_k]
+                        debugMsg = "Real evil file {}".format(real_k)
+                        logger.debug(debugMsg)
+
+                        # remove real_k from the parameters list, to avoid
+                        # __fili_parameters to ask a value for it
+                        del(req["params"][real_k])
+                        req["files"] = { real_k : ("evil_script",config.EVIL_SCRIPT) }
                 __fill_parameters(abstract_params,concrete_params, mapping, req)
                 response = execute_request(s,req)
 

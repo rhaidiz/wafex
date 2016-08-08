@@ -41,7 +41,14 @@ def filesystem(msc_table,extended):
         msg = step[2]
         entry = None
 
-        if sender not in config.receiver_entities and "sqli" not in msg:
+        if sender not in config.receiver_entities:
+            # since in presence of a query the attacker always perform
+            # a SQLi, it might be that he wants to perform an upload file
+            # but he also need a SQLi bypass in order to proceed. So we give
+            # a low priority to SQLi bypass and we check it again for other
+            # attacks.
+            if extended[tag]["attack"] != 10 and extended[tag]["attack"] != -1:
+                continue
             # is a message from the intruder
             debugMsg = "processing {}".format(msg)
             logger.debug(debugMsg)
