@@ -23,16 +23,17 @@ remote_shell_write = "/Users/federicodemeo/Desktop/regis/PhDStudents/demeo/SQLi-
 
 
 BANNER = """\033[38;5;212m
- __      __   _____
-/  \    /  \_/ ____\____    _______/  |__
-\   \/\/   /\   __ \__  \  /  ___/\   __/
- \        /  |  |   / __ \_\___ \  |  |
-  \__/\  /   |__|  (____  /____  > |__|
-       \/               \/     \/        \033[38;5;195m[{}]\033[38;5;212m
+                __          
+               / _|         
+__      ____ _| |_ _____  __
+\ \ /\ / / _` |  _/ _ \ \/ /
+ \ V  V / (_| | ||  __/>  < 
+  \_/\_/ \__,_|_| \___/_/\_\\
+              \033[38;5;195m[{}]\033[38;5;212m
 \033[38;5;195m{}\033[38;5;212m
 """
 VERSION = "1.0-alpha-dev"
-SITE = "http://wfast.com"
+SITE = "http://...."
 
 HOME = os.path.expanduser("~")
 WFAST_HOME = os.path.join(HOME,".wfast")
