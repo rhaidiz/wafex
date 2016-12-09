@@ -1,0 +1,101 @@
+specification chained_bypass
+channel_model CCM
+
+entity Environment {
+  
+	symbols
+		sqli, xss: text; 			%sql injection payload
+		lfi: text; 		%valid file
+		evil_file: text; 		%valid file
+		webapplication, database, honest, filesystem: agent;
+
+
+		%databses
+		errorsql: text; %any possible SQLi payload that generates an informative error
+
+		%DBMS
+		nonpublic inDB(message): fact;
+		nonpublic error(message): fact;
+		nonpublic sanitizedQuery(message): message;
+		nonpublic query(message): message;
+
+		%Filesystem
+		nonpublic readFile(message): message;
+		nonpublic f_file(message): message;
+		nonpublic new_file(message): message;
+		nonpublic inFS(message): fact;
+		nonpublic inFS_DB(message): fact;
+		nonpublic isInFS(message): fact;
+		nonpublic writeFile(message): message;
+
+		%info about the result of a SQL query
+		nonpublic tuple(message): message;
+		nonpublic no_tuple: text; 
+
+		%web application constants
+		header_cookie : text;
+		username : text;
+		password : text;
+		listselect : text;
+
+		noninvertible hash(message) : message;
+
+		nonceUsed(message) : fact;
+		hknows : message set;
+
+		% request 
+		http_request(message): message;	
+		% response
+		http_response(message): message;	
+
+		nonpublic const : text;
+		Insieme : message set;
+
+		% messages tag
+		nonpublic tag1,tag2,tag3,tag4 : text;
+
+
+
+entity Session(Webapplication, Data: agent) {
+
+	entity Webapplication(Actor, Data : agent) {
+		symbols
+				Insieme ,Val : message set;
+
+		body{
+				Actor *->* Data : Insieme;
+				Insieme := fresh();
+				Data *->* Actor : ?Val;
+				assert g: !Val->contains(const);
+		}%end body
+		
+	}% end entity
+
+ entity Data(Webapplication, Actor: agent) {
+		symbols
+				Blabla : message set;
+
+		body{
+				Webapplication *->* Actor : ?Blabla;
+				Blabla->add(const);
+				Actor *->* Webapplication : Blabla;
+	
+		}%end body
+		
+	}% end entity
+
+	body{ %of session
+		new Webapplication(webapplication,database);
+		new Data(webapplication,database);
+	}
+
+	goals %of session 
+		authorization:
+			[](!iknows(const));
+}
+
+body{ %of Environment
+	new Session(webapplication,database);
+}
+
+}

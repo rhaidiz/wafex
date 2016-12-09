@@ -1,0 +1,56 @@
+% ---------------------------------------------------------------
+% Second-order vulnerability in insert (not concretizable, I don’t 
+% know how to properly set the second-order page to sqlmap)
+% ---------------------------------------------------------------
+
+@symbolsenv
+
+		requestPage, registrationRequest : text;
+		tag1, tag2 : text;
+		nonpublic registered : text;
+
+@webapp
+		symbols
+			Username: text;		
+			Password,SQLquery: message;
+			IP: agent;
+			page : text;
+			NonceWA,NonceDB,NonceFS : text;
+
+		body{
+				while(true){
+						select{ 
+								on(? *->* Actor: ?IP.http_request(registrationRequest, u.s.?Username.s.p.s.?Password, none).tag1) :{
+										NonceWA := fresh();
+										SQLquery := Password;
+										Actor *->* Database: query(SQLquery).NonceWA;
+										select{on(Database *->* Actor: tuple(SQLquery).?NonceDB):{
+												select{on(!nonceUsed(NonceDB)):{
+														nonceUsed(NonceDB);
+														Actor *->* IP: http_response(registered,none);
+												}}
+										}}
+								}% on
+
+								on( ? *->* Actor: ?IP.http_request(requestPage,none,none).tag2):{
+										NonceWA := fresh();
+										SQLquery := Password;
+										Actor *->* Database: query(SQLquery).NonceWA;
+										select{on(Database *->* Actor: tuple(SQLquery).?NonceDB):{
+										%assert bb: false;
+										%assert b: nonceUsed(NonceDB);
+												select{on(!nonceUsed(NonceDB)):{
+														nonceUsed(NonceDB);
+														Actor *->* IP: http_response(page,tuple(SQLquery));
+												}}
+										}}
+								
+								}% on
+						} % select
+				} % while
+		  } % body
+
+
+
+@goals
+			[](!(iknows(tuple(?)))); 

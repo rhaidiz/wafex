@@ -1,0 +1,34 @@
+% -------------------------------------------------------------------------
+% DVWA: page inclusion vulnerability for reading from the file-system
+% -------------------------------------------------------------------------
+
+@symbolsenv
+		%web application constants
+		page, include: text;
+
+		% messages tag
+		tag1 : text;
+
+
+@webapp
+symbols
+			IP: agent;
+			Path: message;
+			NonceWA,NonceDB : text;
+
+		body{
+				while(true){
+					select{
+						% implementing include functionality
+						on( ? *->* Actor : ?IP.http_request(include,page.s.?Path, none).tag1 ):{
+								NonceWA := fresh();
+								Actor *->* Filesystem : readFile(Path).NonceWA;
+								Filesystem *->* Actor : file(Path).NonceWA;
+								Actor *->* IP : http_response(include,file(Path));
+						}
+					}%end select
+				}%end while
+		}%end body
+
+@goals
+[](!(iknows(file(?)))); 			% filesystem access

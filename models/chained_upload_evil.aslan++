@@ -1,0 +1,148 @@
+% ---------------------------------------------------------------
+% SQL injection that bypass the login phase, exploiting unrestricted 
+% file upload for uploading a remote shell, using the remote shell 
+% for reading from the file-system 
+% ---------------------------------------------------------------
+
+
+@symbolsenv
+		%web application constants
+		header_cookie : text;
+		username : text;
+		password : text;
+		listselect : text;
+		login : text;
+		profile : text;
+
+		% messages tagss
+		tag1,tag2,tag3,tag4 : text;
+
+@webapp
+symbols
+			Option,View,Ordering,Typeid: text;
+			Username, Password, Cookie, File, RemoteShell, Path: message;
+			IP: agent;
+			SQLquery, SQLresponse, Search: message;
+			NonceWA,NonceDB,NonceFS : text;
+
+		body{
+
+
+		while(true){
+			select{
+
+				% implementing fileUpload functionality
+				on( ? *->* Actor : ?IP.http_request(profile, file.s.?File, none).?Cookie.tag2):{
+						select{on((cookieUsed(Cookie))):{
+								NonceWA := fresh();
+								Actor *->* Filesystem : writeFile(File).NonceWA;
+						}
+				}}
+
+				% implementing include functionality	
+				% this is not working, the only difference with the one underneath request is that
+				% we put the Filesystem -> Actor in a select_on statement
+				%on( ? *->* Actor : ?IP.http_request(page.?File).tag1):{
+				%	NonceWA := fresh();
+				%	Actor *->* Filesystem : readFile(File).NonceWA;
+				%	select{ on( Filesystem *->* Actor : file(File).NonceFS ):{
+				%		select{ on(!nonceUsed(NonceFS)):{
+				%			nonceUsed(NonceFS);
+				%			Actor *->* IP : file(File);
+				%		}}
+				%	}}
+
+				%}
+
+
+				% implementing include functionality
+			%	on( ? *->* Actor : ?IP.http_request(page.?Path).tag2 ):{
+			%			NonceWA := fresh();
+			%			Actor *->* Filesystem : readFile(Path).NonceWA;
+			%			Filesystem *->* Actor : file(Path).?NonceFS;
+			%				select{on(!nonceUsed(NonceFS)):{
+			%					nonceUsed(NonceFS);
+			%						Actor *->* IP : file(Path);
+			%				}}
+
+			%	}
+
+
+			% form based authentication
+			on( ? *->* Actor: ?IP.http_request(login, u.s.?Username.s.p.s.?Password, none).tag1 ): {
+							% arity problem, we are missing the password check which should be hashed
+							SQLquery := Username;
+
+							NonceWA := fresh();
+							Actor *->* Database : query(SQLquery).NonceWA;
+
+							select{
+									on(Database *->* Actor : tuple(SQLquery).?NonceDB):{
+										select{
+											on( !nonceUsed(NonceDB)):{
+												nonceUsed(NonceDB);
+												Cookie := fresh();
+												cookieUsed(Cookie);
+												Actor *->* IP : http_response(adminPanel, Cookie);
+										}}
+									}
+							}
+				} 
+
+
+			% http basic authentication login
+			on( ? *->* Actor: ?IP.http_request(login, u.s.?Username.s.p.s.?Password, none).tag3 ): {
+					NonceWA := fresh();
+				
+						% I guess that theoretically we can leave it as file(?) and
+						% change it when talking about the concretization ... kinda makes sense
+					select{ on( Username = file(?) & Password = file(?) ):{
+					%select{ on( Username = file(htpwd) & Password = file(htpwd) ):{
+						% now here we check that Username&Passowrd are in htpwd
+						% in case Username&Password are function of file(?), access granted
+						Actor *->* IP : http_response(adminPanel, none);
+
+					}}
+					
+
+
+			}
+				
+
+
+
+				% this branch represents an uploaded server-side code that
+				% reads from the filesystem
+				on( ? *->* Actor : ?IP.http_request(evil_file, file.s.?Path, none).tag3 ):{
+					select{on( inFS(evil_file) & evil_file != Path):{ % means the file RemoteShell has been injected and the file I'm trying to
+																																 % retrieve is not the same as the injected file
+						NonceWA := fresh();
+						Actor *->* Filesystem : readFile(Path).NonceWA;
+						
+						Filesystem *->* Actor : file(Path).?NonceFS;
+							select{on(!nonceUsed(NonceFS)):{
+								nonceUsed(NonceFS);
+									Actor *->* IP : http_response(evil_file, file(Path));
+							}}
+
+					}}
+				}
+
+			}%end select
+		}%end while
+		}%end body
+
+
+@goals
+			[](!(iknows(file(?)))); 																									% filesystem access
+		
+@bodyenv	
+		% isInFS(secureFile);
+		% isInFS(htpwd);
+
+		% this is a trick for giving the intruder the ability to send valid
+		% credentials in case of a sanitized query at the beginning of
+		% an execution. However is bad and does not make sense. Remove this
+		% and block the ability of the database to perform file write in
+		% order to generate the trace you'are expecting
+		% iknows(tuple(sqli));

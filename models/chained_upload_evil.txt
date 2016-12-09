@@ -1,0 +1,31 @@
+{
+"domain" : "157.27.244.25",
+"tag1" : {
+"url" : "https://157.27.244.25/chained/chained/index.php",
+"method" : "POST",
+"mapping" : { "u" : "username" , "p" : "password" },
+"params" : { "username":"?" , "password":"?" }
+},
+
+"tag3" : {
+"url" : "https://157.27.244.25/chained/chained/index.php",
+"method" : "GET",
+"params" : { "file" : "_" },
+"mapping" : { "file" : "file" }
+},
+
+"tag2" : {
+"url" : "https://157.27.244.25/chained/chained/profile.php",
+"method" : "POST",
+"params" : { "avatar" : "?", "phone" : "0987" },
+"mapping" : { "file" : "avatar" }
+},
+
+"viewHistory" : "Welcome",
+"dashboard" : "Welcome",
+"adminPanel" : "Welcome",
+"secureFile" : "Welcome",
+"files" :{
+"evil_file" : "/Users/federicodemeo/Desktop/regis/PhDStudents/demeo/SQLi-formalization/wsfast/evil_file.txt"
+}
+}

@@ -1,0 +1,59 @@
+% -------------------------------------------------------------------------
+% Page inclusion vulnerability for reading from the file-system
+% -------------------------------------------------------------------------
+
+@symbolsenv
+		%web application constants
+		header_cookie : text;
+		username : text;
+		password : text;
+		listselect : text;
+		page : text;
+		include, login : text;
+
+
+		% password file
+		htpwd : text;
+
+		% messages tag
+		tag1,tag2,tag3,tag4 : text;
+
+
+@webapp
+symbols
+			Option,View,Ordering,Typeid: text;
+			Username, Password, Cookie, File, RemoteShell, Path: message;
+			IP: agent;
+			SQLquery, SQLresponse, Search: message;
+			NonceWA,NonceDB,NonceFS : text;
+
+		body{
+				while(true){
+					select{
+						% implementing include functionality
+						on( ? *->* Actor : ?IP.http_request(include,page.s.?Path, none).tag2 ):{
+								NonceWA := fresh();
+								Actor *->* Filesystem : readFile(Path).NonceWA;
+								Filesystem *->* Actor : file(Path).NonceWA;
+									select{on(!nonceUsed(NonceFS)):{
+										nonceUsed(NonceFS);
+											Actor *->* IP : http_response(dashboard,file(Path));
+									}}
+						}
+
+						on( ? *->* Actor: ?IP.http_request(login,u.s.?Username.s.p.s.?Password, none).tag1 ):{
+								NonceWA := fresh();
+								SQLquery := Username;
+								Actor *->* Database : query(SQLquery).NonceWA;
+								select{on(Database *->* Actor : tuple(SQLquery).NonceWA):{
+										Actor *->* IP: http_response(dashboard, tuple(SQLquery)); % add a value that check if an http_response is valid?
+								}}
+						}
+					}%end select
+				}%end while
+		}%end body
+
+@goals
+[](!(iknows(file(?)))); 			% filesystem access
+%[](!(iknows(dashboard))); 		% data extraction + authentication bypass
+%[](!(iknows(secureFile))); 	% data extraction + authentication bypass

@@ -1,0 +1,264 @@
+specification joomla
+channel_model CCM
+
+entity Environment {
+  
+	symbols
+		sqli: text; 			%sql injection payload
+		path_injection: text; 		%valid file
+		evil_file: text; 		%valid file
+		webapplication, database,filesystem: agent;
+		nonpublic dashboard: text;
+		nonpublic adminPanel: text;	
+		nonpublic loginPage: text;	
+		nonpublic errorPage: text;
+		nonpublic viewHistory: text;
+		nonpublic secureFile: text;
+		option: text;
+		view: text;
+		upload, file,u,l,p, bob : text;
+		s : text;
+		nonpublic ack: text;
+		nonpublic sanitized(message) : message;
+
+		%databses
+		errorsql: text; %any possible SQLi payload that generates an informative error
+
+		%DBMS
+		nonpublic inDB(message): fact;
+		nonpublic error(message): fact;
+		nonpublic sanitizedQuery(message): message;
+		nonpublic query(message): message;
+		nonpublic query2(message): message;
+
+		%Filesystem
+		nonpublic readFile(message): message;
+		nonpublic file(message): message;
+		nonpublic newFile(message): message;
+		nonpublic inFS(message): fact;
+		nonpublic inFS_DB(message): fact;
+		nonpublic isInFS(message): fact;
+		nonpublic writeFile(message): message;
+		nonpublic no_file : text;
+
+		%info about the result of a SQL query
+		nonpublic tuple(message): message;
+		nonpublic no_tuple: text; 
+
+
+		nonceUsed(message) : fact;
+		cookieUsed(message) : fact;
+
+		% request 
+		% page, parameters, cookie
+		http_request(message, message, message): message;	
+
+		% response
+		% page, result
+		http_response(message, message): message;	
+
+		% none parameter
+		none : text;
+
+		@symbolsenv
+
+	clauses
+		%DBMS (behavior)
+		db_hc_ev(M)  : inDB((sqli.?).M); 
+		db_hc_ev_2(M): inDB(sqli.M); 
+		%db_hc_ev_2(M): inDB(M) :- M = (sqli.?).?; 
+		%db_hc_ev_3(M): inDB(sanitized(M)); 
+
+		%FILESYSTEM (behavior)
+		fs_hc_ev(M)  : inFS(path_injection.M);
+		fs_hc_ev_2(M): inFS(M) :- isInFS(M);
+		%fs_hc_ev_3(F)  : inFS(sanitized(F));
+
+
+entity Session(Webapplication, Database, Filesystem: agent) {
+
+	entity Webapplication(Actor, Database, Filesystem: agent) {
+		@webapp
+	}
+
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% DATABASE ENTITY
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	entity Database(Webapplication, Actor, Filesystem: agent){
+		symbols
+			NonceWA,NonceDB,NonceFS: text;
+			SQLquery, File: message;
+			Sql : message;
+	
+		body{
+			while(true){
+	
+			select{ 
+				%TODO: fix SQLquery is just one message
+				on(Webapplication *->* Actor: query(sanitized(?SQLquery)).?NonceWA ):{
+					select{on( !nonceUsed(NonceWA) & SQLquery = tuple(?) & SQLquery != tuple(file(?)) & SQLquery != tuple(newFile(?) )):{
+						nonceUsed(NonceWA);
+						NonceDB := fresh();
+						Actor *->* Webapplication: no_tuple.NonceDB;
+					}}
+				}
+			
+
+				on(Webapplication *->* Actor: query2(?SQLquery).?NonceWA):{
+
+					select{	on( !nonceUsed(NonceWA)):{
+						nonceUsed(NonceWA);
+
+						select{
+							on(inDB(SQLquery)):{
+								NonceDB := fresh();
+								Actor *->* Webapplication: tuple(SQLquery).NonceDB;
+							}}
+				}}}
+
+
+				on(Webapplication *->* Actor: query(?SQLquery).?NonceWA):{
+					select{	on( !nonceUsed(NonceWA)):{
+						nonceUsed(NonceWA);
+
+						select{
+							on(inDB(SQLquery)):{
+								NonceDB := fresh();
+								Actor *->* Webapplication: tuple(SQLquery).NonceDB;
+							}
+
+						 % extend the database to read from filesystem
+							 on(inDB(SQLquery)):{
+							 	NonceDB := fresh();
+							 	select{on( SQLquery = (?Sql.?File).?):{
+							 	Actor *->* Filesystem: readFile(File).NonceDB;
+
+							 	select{on(Filesystem *->* Actor : file(File).?NonceFS):{
+							 		select{	on( !nonceUsed(NonceFS)):{
+							 			nonceUsed(NonceFS);
+							 			NonceDB := fresh();
+							 			Actor *->* Webapplication : tuple(file(File)).NonceDB;
+							 		}}
+							 	}}
+							 }}
+							 }	
+	
+	
+						  %% extend the database to write to filesystem
+							%  on(inDB(SQLquery)):{
+							%  	NonceDB := fresh();
+							%  	% when coming here, write a random file to filesystem.
+							%  	% when returning, the intruder will get to know the newly
+							%  	% created file
+
+							%  	% writing a file with a valid sql. If we assume that something is
+							%  	% inDB valid means that the pattern is validConstant.fileToWrite.remainingMessage
+							%  	select{on( SQLquery = (?Sql.?File).?):{
+							%  						Actor *->* Filesystem: writeFile(File).NonceDB;
+							%  					%%	select{on(Filesystem *->* Actor : newFile(?File).?NonceFS):{
+							%  					%%		select{	on( !nonceUsed(NonceFS)):{
+							%  								nonceUsed(NonceFS);
+							%  								NonceDB := fresh();
+							%  								Actor *->* Webapplication : tuple(newFile(File)).NonceDB;
+							%  					%%		}}
+							%  					%%	}}
+							%  		}}
+							%  	}
+								
+							on((!inDB(SQLquery) & SQLquery != sanitized(?)) ):{
+								NonceDB := fresh();
+								Actor *->* Webapplication: no_tuple.NonceDB;
+							}
+						}
+					}
+				} %end select
+			}%end on
+			} %select	
+		} %while 
+	} %body
+  }%dbEntity
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% FILESYSTEM ENTITY
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	entity Filesystem(Webapplication, Actor: agent){
+
+			symbols
+				Nonce1, Nonce2: text;
+				Path : message;
+				Entity : agent;
+
+			body{
+				while(true){
+					select{
+						% the webapplication asks to read the filesystem 
+						on(?Entity *->* Actor : readFile(?Path).?Nonce1):{
+							select{
+								on( !nonceUsed(Nonce1) & inFS(Path)):{
+										nonceUsed(Nonce1);
+										Nonce2 := fresh();
+										Actor *->* Entity : file(Path).Nonce2;
+								}
+								on( !nonceUsed(Nonce1) & inFS(Path)):{
+										nonceUsed(Nonce1);
+										Nonce2 := fresh();
+										Actor *->* Entity : no_file.Nonce2;
+								}
+							}%select(on)
+						} %on webapp -> fs
+				  	%on(Database *->* Actor : readFile(?Path).?Nonce1):{
+				  	%		select{on( !nonceUsed(Nonce1) & inFS(Path)):{
+				  	%			nonceUsed(Nonce1);
+				  	%			Nonce2 := fresh();
+				  	%			Actor *->* Database : file(Path).Nonce2;
+				  	%		}}%select(on)
+				  	%} %on database -> fs
+						% write to filesystem from the web app
+						on(?Entity *->* Actor : writeFile(?Path).?Nonce1):{
+				  			select{on( !nonceUsed(Nonce1)):{
+								nonceUsed(Nonce1);
+								Nonce2 := fresh();
+								isInFS(Path); % from this point on, inFS(Path) holds for the new path
+								%% Actor *->* Webapplication : newFile(Path).Nonce2;
+								% no return for now
+							}}
+						} %writeFile
+						% write to filesystem from the database
+						%on(Database *->* Actor : writeFile(?Path).?Nonce1):{
+				  	%		select{on( !nonceUsed(Nonce1)):{
+						%		%assert bau: false;
+						%		nonceUsed(Nonce1);
+						%		Nonce2 := fresh();
+						%		isInFS(Path); % from this point on, inFS(Path) holds for the new path
+						%		%% Actor *->* Database : newFile(Path).Nonce2;
+						%		% no return for now
+						%	}}
+						%} %writeFile
+
+					}%select
+				}%while
+			}%body
+	}%fs_entity
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+	body{ %of session
+		new Webapplication(webapplication, database, filesystem);  
+		new Database(webapplication, database, filesystem);
+		new Filesystem(webapplication,filesystem);
+	}
+
+	goals %of session 
+		ggg:
+				@goals
+}
+
+body{ %of Environment
+@bodyenv
+	new Session(webapplication, database, filesystem);
+}
+
+}

@@ -1,0 +1,72 @@
+% -------------------------------------------------------------------------
+% Simple authentication bypass of an authentication form via SQL-injection
+% -------------------------------------------------------------------------
+
+@symbolsenv
+		%web application constants
+		header_cookie : text;
+		username : text;
+		password : text;
+		listselect : text;
+		search, login : text;
+
+		% messages tag
+		tag1,tag2,tag3,tag4 : text;
+
+@webapp
+		symbols
+			Option,View,Ordering,Typeid: text;
+			Username, Password, Cookie, File, RemoteShell, Path: message;
+			IP: agent;
+			SQLquery, SQLresponse, Search: message;
+			NonceWA,NonceDB,NonceFS : text;
+
+		body{
+
+
+		while(true){
+			select{
+
+			on( ? *->* Actor: ?IP.http_request(search, u.s.?Search, none).tag1 ): {
+
+							% arity problem
+							SQLquery := Search;
+
+							NonceWA := fresh();
+							Actor *->* Database : query(SQLquery).NonceWA;
+
+							select{
+									on(Database *->* Actor : tuple(?SQLresponse).?NonceDB):{
+										select{
+											on( !nonceUsed(NonceDB)):{
+												nonceUsed(NonceDB);
+												Actor *->* IP : http_response(viewHistory,tuple(SQLresponse));
+										}}
+									}
+							}
+				} 
+
+
+				on( ? *->* Actor: ?IP.http_request(login, u.s.?Username.s.p.s.?Password, none).tag1 ):{
+
+						NonceWA := fresh();
+						SQLquery := Username;
+						Actor *->* Database : query(SQLquery).NonceWA;
+
+						
+						select{
+							on(Database *->* Actor : tuple(SQLquery).?NonceDB):{
+							select{
+								on(!nonceUsed(NonceDB)):{
+								nonceUsed(NonceDB);
+								Actor *->* IP: http_response(dashboard,tuple(SQLquery)); % add a value that check if an http_response is valid?
+							}
+							}}
+						}}
+
+			}%end select
+		}%end while
+		}%end body
+
+@goals
+ [](!(iknows(dashboard))); 			%data extraction + authentication bypass

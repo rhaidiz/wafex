@@ -1,0 +1,60 @@
+@symbolsenv
+		%web application constants
+		header_cookie : text;
+		userid : text;
+		password : text;
+		listselect : text;
+		htpwd : text;
+		cookie : text;
+		uploaded: text;
+		profile : text;
+
+		% messages tagss
+		tag1,tag2,tag3,tag4 : text;
+
+
+@webapp
+symbols
+			Option,View,Ordering,Typeid: text;
+			IDvalue, Password, Cookie, File, RemoteShell, Path: message;
+			IP: agent;
+			SQLquery, SQLresponse, Search: message;
+			NonceWA,NonceDB,NonceFS : text;
+
+		body{
+
+
+		while(true){
+			select{
+
+			% form based authentication
+			on( ? *->* Actor: ?IP.http_request(userid.?IDvalue).tag1 ): {
+							% arity problem, we are missing the password check which should be hashed
+							SQLquery := IDvalue;
+
+							NonceWA := fresh();
+							Actor *->* Database : query(SQLquery).NonceWA;
+
+							select{
+									on(Database *->* Actor : tuple(?SQLresponse).?NonceDB):{
+										select{
+											on( !nonceUsed(NonceDB)):{
+												nonceUsed(NonceDB);
+												Actor *->* IP : http_response(userid.tuple(SQLresponse));
+										}}
+									}
+							}
+				} 
+
+			}%end select
+		}%end while
+		}%end body
+		
+
+@goals
+		[](!(iknows(f_file(?))));
+
+
+@bodyenv
+		%isInFS(secureFile);
+		%isInFS(htpwd);

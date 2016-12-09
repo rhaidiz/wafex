@@ -1,0 +1,69 @@
+@symbolsenv
+		%web application constants
+		header_cookie : text;
+		username : text;
+		password : text;
+		listselect : text;
+		htpwd : text;
+		page : text;
+
+		% messages tagss
+		tag1,tag2,tag3,tag4 : text;
+
+
+@webapp
+symbols
+			Option,View,Ordering,Typeid: text;
+			Username, Password, Cookie, File, RemoteShell, Path: message;
+			IP: agent;
+			SQLquery, SQLresponse, Search: message;
+			NonceWA,NonceDB,NonceFS : text;
+
+		body{
+				while(true){
+						select{
+
+						% implementing include functionality
+						on( ? *->* Actor : ?IP.http_request(page.s.?Path).tag2 ):{
+								NonceWA := fresh();
+								%Actor *->* Filesystem : readFile(sanitized(Path)).NonceWA;
+								Actor *->* Filesystem : readFile(Path).NonceWA;
+								Filesystem *->* Actor : file(Path).?NonceFS;
+									select{on(!nonceUsed(NonceFS)):{
+										nonceUsed(NonceFS);
+											Actor *->* IP : file(Path);
+									}}
+						}
+
+						 % http basic authentication login
+							on( ? *->* Actor: ?IP.http_request(u.s.?Username.s.p.s.?Password).tag3 ): {
+									NonceWA := fresh();
+								
+										% I guess that theoretically we can leave it as file(?) and
+										% change it when talking about the concretization ... kinda makes sense
+									select{ on( Username = file(?) & Password = file(?) ):{
+										% now here we check that Username&Passowrd are in htpwd
+										% in case Username&Password are function of file(?), access granted
+										Actor *->* IP : http_response(adminPanel);
+
+							}}}
+
+
+			}%end select
+		}%end while
+		}%end body
+		
+
+@goals
+		%[](!(iknows(tuple(?)))); 																							%data extraction + authentication bypass
+		%[](!(iknows(new_file(evil_file.?)))); 																							%data extraction + authentication bypass
+		[](!(iknows(adminPanel))); 																							%data extraction + authentication bypass
+		%[](!(iknows(file(htpwd)))); 																							%data extraction + authentication bypass
+
+		%[](!(iknows(file(secureFile)))); 																							%data extraction + authentication bypass
+		%[](!(iknows(file(?)))); 																									% filesystem access
+		%[](!(isInFS(evil_file))); 																									% filesystem access
+
+@bodyenv
+		%isInFS(secureFile);
+		%isInFS(htpwd);

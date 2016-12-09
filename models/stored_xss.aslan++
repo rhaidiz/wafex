@@ -1,0 +1,59 @@
+% ---------------------------------------------------------------
+% stored XSS for stealing the client's knowledge
+% ---------------------------------------------------------------
+
+
+@symbolsenv
+		%web application constants
+		insertPage, comment, destroy, destroyComment : text;
+
+			% page sets
+			nonpublic insertSet : message set;
+
+		% messages tagss
+		tag1,tag2,tag3,tag4 : text;
+
+@webapp
+symbols
+			Com:  message;
+			IP: agent;
+			SQLquery, SQLresponse, Search, Val: message;
+			NonceWA,NonceDB,NonceFS : text;
+			WebNonce : text;
+
+
+		body{
+
+
+		while(true){
+			select{
+
+				% insert in database
+				on( ?IP *->* Actor : http_request(insertPage, comment.s.?Com, none).tag1.?WebNonce):{
+								NonceWA := fresh();
+								Actor *->* Database : insert(insertSet,comment.Com).NonceWA;
+				}
+				% retrieve from database
+				on( ?IP *->* Actor : http_request(insertPage, comment.s.?Com, none).tag2.?WebNonce):{
+						NonceWA := fresh();
+						Actor *->* Database : new_query(insertSet,Com).NonceWA;
+						Database *->* Actor : ?Val.NonceWA;
+						Actor *->* IP : http_response(insertPage,Val).tag2.WebNonce;
+						%assert g: Val != xss.insertPage;
+				}
+				on( ?IP *->* Actor : http_request(destroy, comment.s.destroyComment, none).tag3.?WebNonce):{
+								NonceWA := fresh();
+								Actor *->* IP : http_response(destroy,none).tag3.WebNonce;
+				}
+				
+		}
+		}%end while
+		}%end body
+
+
+@goals
+		%[](!(redirect(insertPage)));
+		[](!(iknows(hknows)));
+		%[](!(iknows(tuple(?))));
+		%[](!(insertSet->contains(?.xss)));
+		

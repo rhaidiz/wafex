@@ -1,0 +1,196 @@
+entity Base{
+
+symbols
+		sqli: text; 						%sql injection payload
+		path_injection: text; 	%file path payload (like path traversal)
+		evil_file: text; 				%valid malicious file which enable upload of server-side code
+
+		nonpublic dashboard: text;
+		nonpublic adminPanel: text;	
+		nonpublic loginPage: text;	
+		nonpublic errorPage: text;
+		nonpublic viewHistory: text;
+		nonpublic ack: text;
+
+
+		%DBMS
+		nonpublic inDB(message): fact;
+		nonpublic sanitizedQuery(message): message;
+		nonpublic query(message): message;
+		%info about the result of a SQL query
+		nonpublic tuple(message): message;
+		nonpublic no_tuple: text; 
+
+		%Filesystem
+		nonpublic readFile(message): message;
+		nonpublic f_file(message): message;
+		nonpublic inFS(message): fact;
+		nonpublic isInFS(message): fact;
+		nonpublic writeFile(message): message;
+
+
+		% request 
+		http_request(message): message;	
+		% response
+		http_response(message): message;	
+		% used nonce marker
+		nonceUsed(message) : fact;
+
+	clauses
+		%DBMS (behavior)
+		%multiple HCs are required for representing multiple messages patterns
+		db_hc_ev(M):		inDB((sqli.?).M); 
+		db_hc_ev_2(M):	inDB(sqli.M); 
+
+		%FILESYSTEM (behavior)
+		fs_hc_ev(F):		inFS(path_injection.F);
+		fs_hc_ev_3(F):	inFS(F) :- isInFS(F);
+
+
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% DATABASE ENTITY
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+entity Database(Webapplication, Actor, Filesystem: agent){
+		symbols
+			NonceWA,NonceDB,NonceFS: text;
+			SQLquery, File: message;
+			Sql : message;
+
+
+		body{
+			while(true){
+	
+			select{ 
+				%TODO: fix SQLquery is just one message
+				on(Webapplication *->* Actor: sanitizedQuery(?SQLquery).?NonceWA ):{
+					select{on( !nonceUsed(NonceWA) & SQLquery = tuple(?) & SQLquery != tuple(f_file(?))):{
+						nonceUsed(NonceWA);
+						NonceDB := fresh();
+						Actor *->* Webapplication: no_tuple.NonceDB;
+					}}
+				}
+				
+				on(Webapplication *->* Actor: query(?SQLquery).?NonceWA ):{
+					select{	on( !nonceUsed(NonceWA)):{
+						nonceUsed(NonceWA);
+
+						select{
+							on(inDB(SQLquery)):{
+								NonceDB := fresh();
+								Actor *->* Webapplication: tuple(SQLquery).NonceDB;
+							}
+						 % extend the database to read from filesystem
+							on(inDB(SQLquery)):{
+								NonceDB := fresh();
+								select{on( SQLquery = (?Sql.?File)):{
+								Actor *->* Filesystem: readFile(File).NonceDB;
+
+								select{on(Filesystem *->* Actor : f_file(File).?NonceFS):{
+									select{	on( !nonceUsed(NonceFS)):{
+										nonceUsed(NonceFS);
+										NonceDB := fresh();
+										Actor *->* Webapplication : tuple(f_file(File)).NonceDB;
+									}}
+								}}
+							}}
+							}	
+	
+	
+						% extend the database to write to filesystem
+							on(inDB(SQLquery)):{
+								NonceDB := fresh();
+								% when coming here, write a random file to filesystem.
+								% when returning, the intruder will get to know the newly
+								% created file
+
+								% writing a file with a valid sql. If we assume that something is
+								% inDB valid means that the pattern is validConstant.fileToWrite.remainingMessage
+								select{on( SQLquery = (?Sql.?File).?):{
+													Actor *->* Filesystem: writeFile(File).NonceDB;
+													%select{on(Filesystem *->* Actor : new_file(?File).?NonceFS):{
+													%	select{	on( !nonceUsed(NonceFS)):{
+															nonceUsed(NonceFS);
+															NonceDB := fresh();
+															Actor *->* Webapplication : no_tuple.NonceDB;
+															% Actor *->* Webapplication : tuple(new_file(File)).NonceDB;
+													%	}}
+													%}}
+									}}
+								}
+								
+
+
+							on(!(inDB(SQLquery))):{
+								NonceDB := fresh();
+								Actor *->* Webapplication: no_tuple.NonceDB;
+							}
+						}
+					}
+				} %end select
+			}%end on
+			} %select	
+		} %while 
+	} %body
+  }%dbEntity
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% FILESYSTEM ENTITY
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	entity Filesystem(Webapplication, Database, Actor: agent){
+
+			symbols
+				Nonce1, Nonce2: text;
+				Path : message;
+
+			body{
+				while(true){
+					select{
+						% the webapplication asks to read the filesystem 
+						on(Webapplication *->* Actor : readFile(?Path).?Nonce1):{
+							select{on( !nonceUsed(Nonce1) & inFS(Path)):{
+								nonceUsed(Nonce1);
+								Nonce2 := fresh();
+								Actor *->* Webapplication : f_file(Path).Nonce2;
+								%assert bau: Path != path_injection.?;
+							}}%select(on)
+						} %on webapp -> fs
+				  	on(Database *->* Actor : readFile(?Path).?Nonce1):{
+				  			select{on( !nonceUsed(Nonce1) & inFS(Path)):{
+				  				nonceUsed(Nonce1);
+				  				Nonce2 := fresh();
+				  				Actor *->* Database : f_file(Path).Nonce2;
+				  			}}%select(on)
+				  	} %on database -> fs
+						% write to filesystem from the web app
+						on(Webapplication *->* Actor : writeFile(?Path).?Nonce1):{
+				  			select{on( !nonceUsed(Nonce1)):{
+								nonceUsed(Nonce1);
+								Nonce2 := fresh();
+								isInFS(Path); % from this point on, inFS(Path) holds for the new path
+								% Actor *->* Webapplication : new_file(Path).Nonce2;
+								% no return for now
+							}}
+						} %writeFile
+						% write to filesystem from the database
+						on(Database *->* Actor : writeFile(?Path).?Nonce1):{
+				  			select{on( !nonceUsed(Nonce1)):{
+								%assert bau: false;
+								nonceUsed(Nonce1);
+								Nonce2 := fresh();
+								isInFS(Path); % from this point on, inFS(Path) holds for the new path
+								% Actor *->* Database : new_file(Path).Nonce2;
+								% no return for now
+							}}
+						} %writeFile
+
+					}%select
+				}%while
+			}%body
+	}%fs_entity
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+}

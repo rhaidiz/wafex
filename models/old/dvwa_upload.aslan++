@@ -1,0 +1,50 @@
+@symbolsenv
+		%web application constants
+		header_cookie : text;
+		username : text;
+		password : text;
+		listselect : text;
+		htpwd : text;
+		cookie : text;
+		uploaded: text;
+		profile : text;
+
+		% messages tagss
+		tag1,tag2,tag3,tag4 : text;
+
+
+@webapp
+symbols
+			Option,View,Ordering,Typeid: text;
+			Username, Password, Cookie, File, RemoteShell, Path: message;
+			IP: agent;
+			SQLquery, SQLresponse, Search: message;
+			NonceWA,NonceDB,NonceFS : text;
+
+		body{
+
+
+		while(true){
+			select{
+
+				% implementing fileUpload functionality
+				on( ? *->* Actor : ?IP.http_request(uploaded.?File).tag3):{
+						%assert bau: false;
+						NonceWA := fresh();
+						Actor *->* Filesystem : writeFile(File).NonceWA;
+						Actor *->* IP : uploaded;
+
+				}
+
+			}%end select
+		}%end while
+		}%end body
+		
+
+@goals
+		[](!(isInFS(evil_file)));
+
+
+@bodyenv
+		%isInFS(secureFile);
+		isInFS(htpwd);

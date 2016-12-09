@@ -1,0 +1,51 @@
+% ---------------------------------------------------------------
+% skeleton of aslan++
+% ---------------------------------------------------------------
+
+@symbolsenv
+		%web application constants
+		user,username,password : text;
+		nonpublic dashboard_php,profile_php,index_php : text;
+
+		% messages tagss
+		tag1, tag2, tag3 : text;
+
+@webapp
+symbols
+		Var1, Var2, Var3 : message;
+		% Com:  message;
+		% IP: agent;
+		% SQLquery, SQLresponse, Search, Val: message;
+		% NonceWA,NonceDB,NonceFS : text;
+		Cookie1, Cookie2 : message;
+		WebNonce : text;
+		Entity : agent;
+
+
+		body{
+			while(true){
+				select{
+					
+						on(?Entity*->*Actor:http_request(dashboard_php,none,Cookie1).tag1.?WebNonce):{
+						% todo: request's behavior here
+						Actor*->*Entity:http_response(dashboard_php,Cookie1).tag1.WebNonce;
+					}
+
+						on(?Entity*->*Actor:http_request(profile_php,user.s.?Var1,Cookie1).tag2.?WebNonce):{
+						% todo: request's behavior here
+						Actor*->*Entity:http_response(profile_php,Cookie1).tag2.WebNonce;
+					}
+
+						on(?Entity*->*Actor:http_request(index_php,username.s.?Var2.s.password.s.?Var3,Cookie1).tag3.?WebNonce):{
+						% todo: request's behavior here
+						Actor*->*Entity:http_response(dashboard_php,Cookie1.Cookie2).tag3.WebNonce;
+					}
+
+				}
+			}%end while
+		}%end body
+
+
+@goals
+[](iknows(dashboard_php));
+

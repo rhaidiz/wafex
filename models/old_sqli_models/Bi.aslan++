@@ -1,0 +1,75 @@
+entity Bi{
+symbols
+
+		sqli: text; 						%sql injection payload
+		path_injection: text; 	%file path payload (like path traversal)
+		evil_file: text; 				%valid malicious file which enable upload of server-side code
+
+		nonpublic dashboard: text;
+		nonpublic adminPanel: text;	
+		nonpublic loginPage: text;	
+		nonpublic errorPage: text;
+		nonpublic viewHistory: text;
+		nonpublic ack: text;
+
+		%DBMS
+		nonpublic inDB(message): fact;
+		nonpublic sanitizedQuery(message): message;
+		nonpublic query(message): message;
+		%info about the result of a SQL query
+		nonpublic tuple(message): message;
+		nonpublic no_tuple: text; 
+
+		%Filesystem
+		nonpublic readFile(message): message;
+		nonpublic f_file(message): message;
+		nonpublic inFS(message): fact;
+		nonpublic isInFS(message): fact;
+		nonpublic writeFile(message): message;
+
+
+		% request 
+		http_request(message): message;	
+		% response
+		http_response(message): message;	
+		% used nonce marker
+		nonceUsed(message) : fact;
+
+	clauses
+		%DBMS (behavior)
+		%multiple HCs are required for representing multiple messages patterns
+		db_hc_ev(M):		inDB((sqli.?).M); 
+		db_hc_ev_2(M):	inDB(sqli.M); 
+
+		%FILESYSTEM (behavior)
+		fs_hc_ev(F):		inFS(path_injection.F);
+		fs_hc_ev_3(F):	inFS(F) :- isInFS(F);
+
+
+
+entity Database(Webapplication, Actor, Filesystem: agent){
+
+		symbols
+			NonceWA,NonceDB,NonceFS: text;
+			SQLquery, File: message;
+			Sql : message;
+		body{
+				while(true){
+			select{ 
+				%TODO: fix SQLquery is just one message
+				on(Webapplication *->* Actor: sanitizedQuery(?SQLquery).?NonceWA ):{
+					select{on( !nonceUsed(NonceWA) & SQLquery = tuple(?) & SQLquery != tuple(f_file(?))):{
+						nonceUsed(NonceWA);
+						NonceDB := fresh();
+						Actor *->* Webapplication: no_tuple.NonceDB;
+					}}
+				}}
+				}
+		} %end DB body
+} %end EntityDB
+
+entity Filesystem(Webapplication, Actor, Filesystem: agent){
+}
+
+
+}

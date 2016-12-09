@@ -1,0 +1,115 @@
+@symbolsenv
+		%web application constants
+		header_cookie : text;
+		password : text;
+		listselect : text;
+		htpwd : text;
+		cookie : text;
+		avatar: text;
+		profile : text;
+		profileid,edit : text;
+		username : message;
+
+		% messages tagss
+		tag1,tag2,tag3,tag4 : text;
+
+
+@webapp
+symbols
+			Option,View,Ordering,Typeid: text;
+			Username, Password, Cookie, Avatar, RemoteShell, Path, Id, Name, Surname, Phone: message;
+			IP: agent;
+			SQLquery, SQLresponse, Search: message;
+			NonceWA,NonceDB,NonceFS,NonceDB1,NonceDB2 : text;
+
+		body{
+
+
+		while(true){
+			select{
+
+			%	% implementing fileUpload functionality
+			%	on( ? *->* Actor : ?IP.http_request(edit.?Name.?Surname.?Phone.?Avatar.cookie.?Cookie).tag4):{
+			%			select{
+			%					on((cookieUsed(Cookie))):{
+			%							NonceWA := fresh();
+			%							Actor *->* Database : query(Phone).NonceWA;
+			%							select{
+			%									on(Database *->* Actor : tuple(?SQLresponse).?NonceFS):{
+			%									select{
+			%											on( !nonceUsed(NonceFS)):{
+			%													nonceUsed(NonceFS);
+			%													NonceWA := fresh();
+			%													Actor *->* Filesystem : writeFile(Avatar).NonceWA;
+			%													Actor *->* IP : profileid.tuple(SQLresponse);
+			%									}}
+			%							}}
+			%			}}
+			%	}
+
+
+			%	% implementing viewProfile 
+			%	on( ? *->* Actor : ?IP.http_request(profileid.?Id.cookie.?Cookie).tag3):{
+			%			select{
+			%					on((cookieUsed(Cookie))):{
+			%							NonceWA := fresh();
+			%							Actor *->* Database : query(Id).NonceWA;
+			%					select{
+			%						on(Database *->* Actor : tuple(?SQLresponse).?NonceDB2):{
+			%							select{
+			%								on( !nonceUsed(NonceDB2)):{
+			%									nonceUsed(NonceDB2);
+			%									Actor *->* IP : profileid.tuple(SQLresponse);
+			%							}}
+			%							}}
+
+			%			}}
+			%	}
+
+			% form based authentication
+			on( ? *->* Actor: ?IP.http_request(u.?Username.p.?Password).tag1 ): {
+							% arity problem, we are missing the password check which should be hashed
+							SQLquery := Username;
+
+							NonceWA := fresh();
+							Actor *->* Database : query(SQLquery).NonceWA;
+							select{
+									on(Database *->* Actor : tuple(?SQLresponse).?NonceDB):{
+										select{
+											on( !nonceUsed(NonceDB)):{
+												nonceUsed(NonceDB);
+												Cookie := fresh();
+												cookieUsed(Cookie);
+												Actor *->* IP : http_response(dashboard.Cookie.tuple(SQLresponse));
+										}}
+									}
+							}
+				} 
+
+				% this branch represents an uploaded server-side code that
+				% reads from the filesystem
+				on( ? *->* Actor : ?IP.http_request(file.?Path).tag2 ):{
+					select{on( isInFS(evil_file) & evil_file != Path):{ % means the file RemoteShell has been injected and the file I'm trying to
+						 % retrieve is not the same as the injected file
+						NonceWA := fresh();
+						Actor *->* Filesystem : readFile(Path).NonceWA;
+						
+						Filesystem *->* Actor : file(Path).?NonceFS;
+							select{on(!nonceUsed(NonceFS)):{
+								nonceUsed(NonceFS);
+									Actor *->* IP : file(Path);
+							}}
+					}}
+				}
+
+			}%end select
+		}%end while
+		}%end body
+		
+
+@goals
+		[](!(iknows(file(?)))); 
+
+@bodyenv
+		%isInFS(secureFile);
+		%isInFS(htpwd);

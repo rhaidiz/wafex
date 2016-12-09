@@ -1,0 +1,28 @@
+{ 
+"domain" : "157.27.244.25", 
+"tag1" : {
+"url" : "https://157.27.244.25/chained/chained/index.php",
+"method" : "POST",
+"params" : { "u": "username=?","p":"password=?" },
+"tables" : { "username" : "users.username", "password":"users.password" }
+},
+"tag4" : {
+"url" : "https://157.27.244.25/chained/chained/profile.php",
+"method" : "POST",
+"params" : { "avatar": "avatar=?", "phone":"phone=123" },
+"cookies" : {"cookie":"PHPSESSID=?"},
+"tables" : { "username" : "users.avatar"}
+},
+"tag3" : {
+"url" : "https://157.27.244.25/chained/chained/profile.php",
+"method" : "POST",
+"params" : { "u": "user=bob"}
+},
+
+"viewHistory" : "Welcome",
+"dashboard" : "Welcome *bash*",
+"adminPanel" : "Welcome *bash*",
+"secureFile" : "Welcome",
+"files":{"htpwd": "/var/www/html/chained/chained/_htaccess"}
+
+}

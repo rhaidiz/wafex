@@ -1,0 +1,16 @@
+{
+"domain" : "157.27.244.25",
+"tag1" : {
+"url" : "https://157.27.244.25/chained/chained/index.php",
+"method" : "POST",
+"params" : { "username":"?" , "password":"cc" },
+"mapping" : { "u" : "username", "p" : "password"}
+},
+
+
+"viewHistory" : "Welcome",
+"dashboard" : "Welcome",
+"adminPanel" : "Surname",
+"secureFile" : "Welcome"
+
+}

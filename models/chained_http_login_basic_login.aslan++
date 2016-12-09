@@ -1,0 +1,61 @@
+% ---------------------------------------------------------------
+% SQL injection on the http login form for file reading.
+% The file is than used for accessing the basic authentication
+% ---------------------------------------------------------------
+
+@symbolsenv
+		%web application constants
+		index: text;
+		nonpublic privateArea : text;
+
+		% messages tag
+		tag1,tag2,tag3,tag4 : text;
+
+@webapp
+		symbols
+			Option,View,Ordering,Typeid: text;
+			Username, Password, Cookie, File, RemoteShell, Path: message;
+			IP: agent;
+			SQLquery, SQLresponse, Search: message;
+			NonceWA,NonceDB,NonceFS : text;
+
+		body{
+
+
+		while(true){
+				select{
+
+				% basic HTTP login
+				on( ? *->* Actor: ?IP.http_request(index, u.s.?Username.s.p.s.?Password, none).tag2 ): {
+						% we have to represent that the user sends something as function of file 
+						% where the file is htpwd (htpasswd from htaccess)
+						select { on( Username = file(?) | Password = file(?)):{
+								Actor *->* IP : http_response(privateArea,none);
+										}}
+				} 
+
+				% form login
+				on( ? *->* Actor: ?IP.http_request(index, u.s.?Username.s.p.s.?Password, none).tag1 ):{
+
+						NonceWA := fresh();
+						SQLquery := Username;
+						Actor *->* Database : query(SQLquery).NonceWA;
+
+						
+						select{
+							on(Database *->* Actor : tuple(?SQLresponse).?NonceDB):{
+							select{
+								on(!nonceUsed(NonceDB)):{
+								nonceUsed(NonceDB);
+								Actor *->* IP: http_response(dashboard,tuple(SQLresponse)); % add a value that check if an http_response is valid?
+							}
+							}}
+						}}
+
+			}%end select
+		}%end while
+		}%end body
+
+@goals
+ [](!(iknows(privateArea))); 			%data extraction + authentication bypass
+ %[](!(iknows(file(?)))); 			%data extraction + authentication bypass

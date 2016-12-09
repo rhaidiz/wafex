@@ -1,0 +1,90 @@
+% ---------------------------------------------------------------
+% Chained: use --nb 2 because there are 2 query being executed
+% ---------------------------------------------------------------
+
+@symbolsenv
+		%web application constants
+		dashboard : text;
+		usr : text;
+		pwd : text;
+		listselect, file : text;
+		profileId, id, index, edit, name, surname, avatar, phone : text;
+
+		% messages tag
+		tag1,tag2,tag3,tag4 : text;
+		http_request2(message,message) : message;
+		Search : message;
+@webapp
+		symbols
+			Id: text;
+			Username, Password, AuthCookie, Path, Name, Surname, Phone, Avatar: message;
+			IP: agent;
+			SQLquery, SQLresponse, Search: message;
+			NonceWA : text;
+
+		body{
+
+		while(true){
+			select{
+ 
+				on( ? *->* Actor: ?IP.http_request(profileId, id.s.?Id, ?AuthCookie).tag3 ): {
+					select{ on(sessionValues(AuthCookie)):{
+									SQLquery := Id;
+									NonceWA := fresh();
+									Actor *->* Database : query(SQLquery).NonceWA;
+									select{ on(Database *->* Actor : tuple(SQLresponse)):{
+													Actor *->* IP : http_response(profileId,tuple(SQLresponse).AuthCookie);
+											}
+									}
+							}
+					}
+				}
+
+				on( ? *->* Actor : ?IP.http_request(edit, name.s.?Name.s.surname.s.?Surname.s.phone.s.?Phone.s.avatar.s.?Avatar,?AuthCookie).tag2):{
+						select{ on(sessionValues(AuthCookie)):{
+										SQLquery := Name.Surname.Phone.Avatar;
+									NonceWA := fresh();
+										Actor *->* Database : query(SQLquery).NonceWA;
+										select{ on(Database *->* Actor : tuple(?SQLresponse).NonceWA):{
+												NonceWA := fresh();
+												Actor *->* Filesystem : writeFile(Avatar).NonceWA;
+												Actor *->* IP : http_response(profileId, tuple(SQLresponse).AuthCookie);
+												}
+										}
+								}
+						}
+				}
+
+				% this branch represents an uploaded server-side code that
+				% reads from the filesystem
+				on( ? *->* Actor : ?IP.http_request(evil_file, file.s.?Path, none).tag4):{
+					select{on( inFS(evil_file) & evil_file != Path):{ % means the file RemoteShell has been injected and the file I'm trying to
+						% retrieve is not the same as the injected file
+						NonceWA := fresh();
+						Actor *->* Filesystem : readFile(Path).NonceWA;
+						%assert b:false;
+						Filesystem *->* Actor : file(Path).NonceWA;
+									Actor *->* IP : http_response(evil_file, file(Path));
+					}}
+				}
+
+				on( ? *->* Actor: ?IP.http_request(index,usr.s.?Username.s.pwd.s.?Password, none).tag1 ):{
+						NonceWA := fresh();
+						SQLquery := Username.Password;
+						Actor *->* Database : query(SQLquery).NonceWA;
+						
+						select{
+							on(Database *->* Actor : tuple(?SQLresponse).NonceWA):{
+								AuthCookie := fresh();
+								sessionValues(AuthCookie);
+								Actor *->* IP: http_response(dashboard, tuple(SQLresponse).AuthCookie);
+							}
+							}
+						}
+		}
+			}%end while
+		}%end body
+
+@goals
+			[](!(iknows(file(?)))); 	%data extraction + authentication bypass
+
