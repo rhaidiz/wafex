@@ -5,6 +5,13 @@
   \__/\  /\____|__  /\___  /   /_______  /__/\_ \
        \/         \/     \/            \/      \/
 
+
+Requirements
+ - python3
+ - requests
+ - sqlmap (requires: pexpect)
+ - Cl-Atse (requires: java)
+
 Supported features:
  - sqlmap integration
  - sql injection bypass
