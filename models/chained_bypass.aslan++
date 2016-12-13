@@ -5,13 +5,20 @@
 @symbolsenv
 		%web application constants
 		header_cookie : text;
-		username : text;
-		password : text;
 		listselect : text;
 		search, login : text;
 
 		% messages tag
 		tag1,tag2,tag3,tag4 : text;
+
+
+		% database
+		nonpublic users : message set;
+		nonpublic username : text;
+		nonpublic archive : message set;
+		nonpublic bob : text;
+		nonpublic password : text;
+		nonpublic randomCol : text;
 
 @webapp
 		symbols
@@ -30,43 +37,42 @@
 			on( ? *->* Actor: ?IP.http_request(search, u.s.?Search, none).tag1 ): {
 
 							% arity problem
-							SQLquery := Search;
+							SQLquery := randomCol.Search;
 
 							NonceWA := fresh();
-							Actor *->* Database : query(SQLquery).NonceWA;
+							nonceUsed(NonceWA);
+							Actor *->* Database : query(archive,SQLquery).NonceWA;
 
 							select{
-									on(Database *->* Actor : tuple(?SQLresponse).?NonceDB):{
-										select{
-											on( !nonceUsed(NonceDB)):{
-												nonceUsed(NonceDB);
-												Actor *->* IP : http_response(viewHistory,tuple(SQLresponse));
-										}}
+									on(Database *->* Actor : ?SQLresponse.NonceWA):{
+												% assert f : SQLresponse != username;
+												Actor *->* IP : http_response(viewHistory,SQLresponse);
 									}
 							}
-				} 
+			}
 
 
-				on( ? *->* Actor: ?IP.http_request(login, u.s.?Username.s.p.s.?Password, none).tag1 ):{
+			on( ? *->* Actor: ?IP.http_request(login, u.s.?Username.s.p.s.?Password, none).tag1 ):{
 
-						NonceWA := fresh();
-						SQLquery := Username;
-						Actor *->* Database : query(SQLquery).NonceWA;
+					NonceWA := fresh();
+					SQLquery := sanitized(username.Username);
+					Actor *->* Database : query(users,SQLquery).NonceWA;
 
-						
-						select{
-							on(Database *->* Actor : tuple(SQLquery).?NonceDB):{
-							select{
-								on(!nonceUsed(NonceDB)):{
-								nonceUsed(NonceDB);
-								Actor *->* IP: http_response(dashboard,tuple(SQLquery)); % add a value that check if an http_response is valid?
-							}
-							}}
-						}}
+					select{
+						on(Database *->* Actor : ?SQLresponse.NonceWA):{
+							Actor *->* IP: http_response(dashboard,SQLresponse); % add a value that check if an http_response is valid?
+						}
+					}}
 
 			}%end select
 		}%end while
 		}%end body
+
+
+@sessionbody
+users->add(username.bob);
+Database_string := bob;
+
 
 @goals
  [](!(iknows(dashboard))); 			%data extraction + authentication bypass
