@@ -24,3 +24,7 @@ Not yet supported:
  - GUI
  - multitrace 
 
+Requirements:
+ - Requests
+ - Pexpect
+ - Python3
