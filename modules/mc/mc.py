@@ -17,7 +17,7 @@ from modules.logger import logger
 CLATSE = "modules/mc/cl-atse_x86_64-mac"
 
 # default value for the connector
-connector = config.CONNECTOR_1_4_1
+connector = config.CONNECTOR_1_4_9
 
 """
 Generates the message sequence chart
