@@ -19,6 +19,8 @@ from modules.engine import execute_attack
 from modules.logger import logger
 from modules.mc import mc
 from modules.filemerger import merger
+from abstrac_http import AbstractHttpRequest
+from abstrac_http import AbstractHttpResponse
 
 
 
@@ -106,6 +108,12 @@ def main():
 
     # translate the attack trace in msc
     msc_output = mc.generate_msc(file_attack_trace,file_aslan_model)
+
+    # read the output and parse it
+    msc_table = mc.parse_msc(msc_output)
+    logger.debug("Parsed MSC")
+    for msg in msc_table:
+        logger.debug("{} {}:{} {} > tag{}".format(msg.sender , msg.receiver, msg.params, msg.attack, msg.tag))
 
     if not args.mc_only:
          # read the output and parse it

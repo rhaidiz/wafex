@@ -12,6 +12,8 @@ import os.path
 import subprocess
 
 from modules.logger import logger
+from abstrac_http import AbstractHttpRequest
+from abstrac_http import AbstractHttpResponse
 
 # external software
 CLATSE = "modules/mc/cl-atse_x86_64-mac"
@@ -177,33 +179,140 @@ def aslanpp2aslan(file_aslanpp):
 
 
 """
-Takes as input an msc and returns one array with requests
-and responses in order of execution.
-For each step, add the corresponding tag number.
-[ (tag#,(actor1,actor2,message)), ... ]
+Parses a Message Sequence Charts and returns a list of AbstractHttpRequests.
 """
 def parse_msc(aat):
-    logger.info("Parsing the Message Sequence Chart")
-    msc = aat.replace(" ","")
-    lines = msc.split("\n")
-    result = []
-    request_regexp = re.compile(r'(.*?)\*->\*(.*?):(?:.*?).http_request\((.*)\)\.tag([0-9]*)')
-    response_regexp = re.compile(r'(.*?)\*->\*(.*?):http_response\((.*)\)')
-    line_num = 0
-    tag = "tag"
-    for line in lines:
-        if line:
-            tmp_request = request_regexp.match(line)
-            tmp_response = None
-            #if not tmp_request: # not a request
-            #    # search for a response
-            #    tmp_response = response_regexp.match(line)
-            if tmp_request:
-                # we have found a request
-                result.append((tag + tmp_request.group(4),(tmp_request.group(1),tmp_request.group(2),tmp_request.group(3))))
-            else:
-                tmp_response = response_regexp.match(line)
-                if tmp_response:
-                    # we have found a response
-                    result.append((tag,(tmp_response.group(1),tmp_response.group(2),tmp_response.group(3))))
-    return result
+    # remove the < > chars
+    # WARNING: by removing > I also remove the arrow in the messages *->* will become *-*
+    aat = re.sub("<|>","",aat)
+    aat = re.sub("},{","}.{",aat)
+
+    # remove unnecessary messages and duplicates
+    # and insert the remainig lines in reverse inside reverse_aat
+    lines_seen = set()
+    reverse_aat = []
+    for line in aat.split("\n"):
+        line = line.replace(" ","")
+        if not "i*-*honest" in line and not "honest*-*i" in line and not "database" in line and not "filesystem" in line:
+            if line and line not in lines_seen:
+                reverse_aat.insert(0,line)
+                lines_seen.add(line)
+
+    # order the sequence
+    tag_regexp = re.compile(r'tag(?P<tag>[0-9]*)')
+    aat = []
+    tag_seen = set()
+    for line1 in reverse_aat:
+        current_tag = tag_regexp.search(line1).group("tag")
+        for line2 in reverse_aat:
+            tag = tag_regexp.search(line2).group("tag")
+            if tag not in tag_seen and tag == current_tag:
+                aat.insert(0,line2)
+        tag_seen.add(current_tag)
+
+    request_regexp =  re.compile(r'(?P<sender>.*?)\*-\*(?P<receiver>.*?):(?:.*?)http_request\((?P<page>.*)\,(?P<params>.*)\,(?P<cookies>.*)\)\.tag(?P<tag>[0-9]*)')
+    response_regexp = re.compile(r'(?P<sender>.*?)\*-\*(?P<receiver>.*?):http_response\((?P<page>.*)\,(?P<content>.*)\,(?P<cookies>.*)\)\.tag(?P<tag>[0-9]*)')
+    msc = []
+    for line in aat:
+        request_match = request_regexp.match(line)
+        if request_match:
+            ab_http_request = AbstractHttpRequest()
+            ab_http_request.sender = request_match.group("sender")
+            ab_http_request.receiver = request_match.group("receiver")
+            ab_http_request.page = request_match.group("page")
+            params = request_match.group("params")
+            ab_http_request.params = _get_params(params)
+            cookies = request_match.group("cookies")
+            ab_http_request.cookies = _get_params(cookies)
+            ab_http_request.tag = request_match.group("tag")
+            ab_http_request.attack = _identify_attack(ab_http_request)
+            msc.append(ab_http_request)
+        else:
+            response_match = response_regexp.match(line)
+            if response_match:
+                ab_http_request = msc[0]
+                ab_http_response = AbstractHttpResponse()
+                ab_http_response.sender = response_match.group("sender")
+                ab_http_response.receiver = response_match.group("receiver")
+                ab_http_response.page = response_match.group("page")
+                content = response_match.group("content")
+                ab_http_response.content = content.split(".")
+                cookies = response_match.group("cookies")
+                ab_http_response.cookies = cookies.split(".")
+                ab_http_response.tag = response_match.group("tag")
+                ab_http_request.response = ab_http_response
+
+    return msc
+
+
+
+# 1) sqli_bypass : sqli for login bypassing
+# 2) sqli_write : sqli for writing a file
+# 3) sqli_read : sqli for reading a file
+# 4) sqli : dump the entire db
+# 5) xss_hijack : steal the user's session
+# 6) xss_redirect : redirect the user
+# 7) if there is a message from the intruder to the web application that
+#    contains any xss_* than is a stored XSS
+# 8) if there is a message from intruder to web application that contains
+#    a parameter of type "file", is a possible file inclusion so prompt for
+#    using WFuzz
+# else) normal request
+
+def _identify_attack(ab_message):
+    if "i" == ab_message.sender and "webapplication" == ab_message.receiver:
+        for c in ab_message.params:
+            key = c[0]
+            value = c[1]
+            if "sqli" in value:
+                # this is a SQLi dump
+                # vulnerable parameter 
+                return 0
+            elif "sqli_read" in value:
+                # this is a SQLi read
+                # vulnerable parameter 
+                # what to read
+                return 1
+            elif "sqli_write" in value:
+                # this is a SQLi write
+                # vulnerable parameter 
+                # what to write
+                return 2
+            elif "sqli_bypass" in value:
+                # this is a SQLi bypass
+                # vulnerable parameter 
+                return 3
+            elif "xss_redirect" in value:
+                # this is a stored XSS redirect
+                # I need to find the redirection page
+                # vulnerable parameter 
+                return 4
+            elif "xss_hijack" in value:
+                # this is a stored XSS for session hijacking
+                # vulnerable parameter
+                return 5
+            elif "path_injection" in value or "_file" in value:
+                # this is related to file inclusion
+                # vulnerable parameter
+                return 6
+    elif "honest" == ab_message.sender and "webapplication" == ab_message.receiver:
+        for c in ab_message.params:
+            key = c[0]
+            value = c[1]
+            if "xss_redirect" in value:
+                # this is a reflected XSS for redirection
+                # vulnerable parameter
+                return 7
+            elif "xss_hijack" in value:
+                # this is a reflected XSS for session hijacking
+                # vulnerable parameter
+                return 8
+    return -1
+
+def _get_params(array, regex=".s."): 
+    array = array.split(regex)
+    keys = array[::2]
+    values = array[1::2]
+    return list(zip(keys, values))
+
+
