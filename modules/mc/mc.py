@@ -212,11 +212,26 @@ def parse_msc(aat):
 
     request_regexp =  re.compile(r'(?P<sender>.*?)\*-\*(?P<receiver>.*?):(?:.*?)http_request\((?P<page>.*)\,(?P<params>.*)\,(?P<cookies>.*)\)\.tag(?P<tag>[0-9]*)')
     response_regexp = re.compile(r'(?P<sender>.*?)\*-\*(?P<receiver>.*?):http_response\((?P<page>.*)\,(?P<content>.*)\,(?P<cookies>.*)\)\.tag(?P<tag>[0-9]*)')
+
+    # is an array containing AbstractHttpRequest
     msc = []
-    for line in aat:
-        request_match = request_regexp.match(line)
+    # aat is a list containing [request, response, ...] where every request
+    # is followed by a response. We get an iterator and iterate every two
+    # elemements of the list
+    aat_iterator = iter(aat)
+    for line_request in aat_iterator:
+        try:
+            line_response = next(aat_iterator)
+        except StopIteration as e:
+            # it means the was response to the request, it can
+            # happen if the goal is reaced without the need
+            # of sending the response. We set line_response to an empty string
+            line_response = ""
+
+        # parse the request
+        request_match = request_regexp.match(line_request)
+        ab_http_request = AbstractHttpRequest()
         if request_match:
-            ab_http_request = AbstractHttpRequest()
             ab_http_request.sender = request_match.group("sender")
             ab_http_request.receiver = request_match.group("receiver")
             ab_http_request.page = request_match.group("page")
@@ -225,22 +240,28 @@ def parse_msc(aat):
             cookies = request_match.group("cookies")
             ab_http_request.cookies = _get_params(cookies)
             ab_http_request.tag = request_match.group("tag")
-            ab_http_request.attack = _identify_attack(ab_http_request)
-            msc.append(ab_http_request)
-        else:
-            response_match = response_regexp.match(line)
-            if response_match:
-                ab_http_request = msc[0]
-                ab_http_response = AbstractHttpResponse()
-                ab_http_response.sender = response_match.group("sender")
-                ab_http_response.receiver = response_match.group("receiver")
-                ab_http_response.page = response_match.group("page")
-                content = response_match.group("content")
-                ab_http_response.content = content.split(".")
-                cookies = response_match.group("cookies")
-                ab_http_response.cookies = cookies.split(".")
-                ab_http_response.tag = response_match.group("tag")
-                ab_http_request.response = ab_http_response
+            #ab_http_request.attack = _identify_attack(ab_http_request)
+
+        # parse the response
+        response_match = response_regexp.match(line_response)
+        if response_match:
+            ab_http_response = AbstractHttpResponse()
+            ab_http_response.sender = response_match.group("sender")
+            ab_http_response.receiver = response_match.group("receiver")
+            ab_http_response.page = response_match.group("page")
+            content = response_match.group("content")
+            ab_http_response.content = content
+            cookies = response_match.group("cookies")
+            ab_http_response.cookies = cookies.split(".")
+            ab_http_response.tag = response_match.group("tag")
+            ab_http_request.response = ab_http_response
+
+        # identify the action assosiated with this AbstractHttpRequest
+        action, params = _identify_action(ab_http_request)
+        ab_http_request.action = action
+        ab_http_request.action_params = params
+        # append the HTTP request
+        msc.append(ab_http_request)
 
     return msc
 
@@ -250,69 +271,45 @@ def parse_msc(aat):
 # 2) sqli_write : sqli for writing a file
 # 3) sqli_read : sqli for reading a file
 # 4) sqli : dump the entire db
-# 5) xss_hijack : steal the user's session
-# 6) xss_redirect : redirect the user
-# 7) if there is a message from the intruder to the web application that
-#    contains any xss_* than is a stored XSS
-# 8) if there is a message from intruder to web application that contains
-#    a parameter of type "file", is a possible file inclusion so prompt for
-#    using WFuzz
+# 5) path_injection : use Wfuzz
+# 6) xss : steal the user's session
 # else) normal request
 
-def _identify_attack(ab_message):
-    if "i" == ab_message.sender and "webapplication" == ab_message.receiver:
-        for c in ab_message.params:
+def _identify_action(ab_request):
+    """ Returns action code and an array of parameters required for the action. """
+    if "i" == ab_request.sender and "webapplication" == ab_request.receiver:
+        for c in ab_request.params:
+            if(len(c) < 2):
+                return -1
             key = c[0]
             value = c[1]
-            if "sqli" in value:
-                # this is a SQLi dump
-                # vulnerable parameter 
-                return 0
-            elif "sqli_read" in value:
-                # this is a SQLi read
-                # vulnerable parameter 
-                # what to read
-                return 1
+            if "sqli_read" in value:
+                # this is a SQLi for reading a file
+                file_to_read_regexp = re.compile(r'file\((?P<file>.*)\)')
+                file_to_read = file_to_read_regexp.search(ab_request.response.content)
+                return 0, [key, file_to_read.group("file")]
             elif "sqli_write" in value:
-                # this is a SQLi write
-                # vulnerable parameter 
-                # what to write
-                return 2
+                # this is a SQLi for writing a file
+                file_to_write_regexp = re.compile(r'sqli_write\.(?P<file>.*)\.')
+                file_to_write = file_to_write_regexp.search(value)
+                return 1, [key, file_to_write.group("file")]
             elif "sqli_bypass" in value:
-                # this is a SQLi bypass
-                # vulnerable parameter 
-                return 3
-            elif "xss_redirect" in value:
-                # this is a stored XSS redirect
-                # I need to find the redirection page
-                # vulnerable parameter 
-                return 4
-            elif "xss_hijack" in value:
-                # this is a stored XSS for session hijacking
-                # vulnerable parameter
-                return 5
+                # this is a SQLi to create a tautology
+                return 2, [key]
+            elif "xss" in value:
+                # this is an XSS for session hijacking
+                return 3, [key]
             elif "path_injection" in value or "_file" in value:
-                # this is related to file inclusion
-                # vulnerable parameter
-                return 6
-    elif "honest" == ab_message.sender and "webapplication" == ab_message.receiver:
-        for c in ab_message.params:
-            key = c[0]
-            value = c[1]
-            if "xss_redirect" in value:
-                # this is a reflected XSS for redirection
-                # vulnerable parameter
-                return 7
-            elif "xss_hijack" in value:
-                # this is a reflected XSS for session hijacking
-                # vulnerable parameter
-                return 8
+                # this is a file inclusion
+                file_to_read_regexp = re.compile(r'file\((?P<file>.*)\)')
+                file_to_read = file_to_read_regexp.search(ab_request.response.content)
+                return 4, [key, file_to_read.group("file")]
+            elif "sqli" in value:
+                # this is a SQLi for dumping the database
+                return 5, [key]
     return -1
 
-def _get_params(array, regex=".s."): 
-    array = array.split(regex)
-    keys = array[::2]
-    values = array[1::2]
-    return list(zip(keys, values))
+def _get_params(line): 
+    return [c.split(".eq.") for c in line.split(".emp.")]
 
 

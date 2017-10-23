@@ -117,7 +117,7 @@ def main():
     msc_table = mc.parse_msc(msc_output)
     logger.debug("Parsed MSC")
     for msg in msc_table:
-        logger.debug("{} {}:{} {} > tag{}".format(msg.sender , msg.receiver, msg.params, msg.attack, msg.tag))
+        logger.debug("{} {}:{}:{} {} > tag{}".format(msg.sender , msg.receiver, msg.params, msg.action, msg.action_params, msg.tag))
 
     if not args.mc_only:
          # read the output and parse it
