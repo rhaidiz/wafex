@@ -38,12 +38,52 @@ concretization_domain = ""
 # specific for executing sqlmap
 data_to_extract = []
 
-def exitcleanup():
+def exitcleanup(args):
     debugMsg = "exiting {}".format(__name__)
     logger.debug(debugMsg)
 
+def _sqli_bypass(args):
+    print("SQLi bypass {}".format(args))
+
+def _sqli_read(args):
+    print("SQLi read {}".format(args))
+
+def _sqli_write(args):
+    print("SQLi write {}".format(args))
+
+def _sqli_bypass(args):
+    print("SQLi bypass {}".format(args))
+
+def _xss_stored(args):
+    print("stored xss {}".format(args))
+
+def _file_inc(args):
+    print("File inclusion".format(args))
+
+def _sqli_dump(args):
+    print("SQLi dump")
+def _xss_reflected(args):
+    print("reflected xss {}".format(args))
+
+def _normal_request(args):
+    print("normal request {}".format(args))
+
+actions = { -1: _normal_request,
+        0: _sqli_read, 
+        1: _sqli_write, 
+        2: _sqli_bypass,
+        3: _xss_stored,
+        4: _file_inc,
+        5: _sqli_dump,
+        6: _xss_reflected }
+
+def execute_attack(msc):
+    for http in msc:
+        actions[http.action](http.action_params)
+
+
 # takes an attack trace and an extension matrix, and execute the attack
-def execute_attack(msc_table,msc_table_info,file_aslanpp):
+def execute_attack_old(msc_table,msc_table_info,file_aslanpp):
     global s
     global concretization_domain
     logger.info("Executing the attack trace")

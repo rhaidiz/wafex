@@ -297,7 +297,8 @@ def _identify_action(ab_request):
                 # this is a SQLi to create a tautology
                 return 2, [key]
             elif "xss" in value:
-                # this is an XSS for session hijacking
+                # this is a stored XSS since the intruder is comunicating with
+                # the webapplication
                 return 3, [key]
             elif "path_injection" in value or "_file" in value:
                 # this is a file inclusion
@@ -307,6 +308,16 @@ def _identify_action(ab_request):
             elif "sqli" in value:
                 # this is a SQLi for dumping the database
                 return 5, [key]
+    elif "honest" == ab_request.sender and "webapplication" == ab_request.receiver:
+        for c in ab_request.params:
+            if(len(c) < 2):
+                return -1
+            key = c[0]
+            value = c[1]
+            if "xss" in value:
+                # this is a reflected XSS since the honest entity is
+                # communicating with the webapplication
+                return 6,[key]
     return -1
 
 def _get_params(line): 
