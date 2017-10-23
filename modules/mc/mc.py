@@ -130,7 +130,7 @@ def local_cl_atse(file_aslan,options=[]):
     logger.debug(atse_execution_array)
     p1 = subprocess.Popen(atse_execution_array,universal_newlines=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     try:
-        out,err = p1.communicate(timeout=600)
+        out,err = p1.communicate(timeout=config.mc_timeout)
     except subprocess.TimeoutExpired:
         p1.kill()
         logger.critical("Model checker timed out")

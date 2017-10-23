@@ -31,6 +31,7 @@ def main():
     cmd.add_argument("--c",metavar="concre_file",help="The concretization file, needed for executing the whole trace")
     cmd.add_argument("--debug",help="Print debug messages",action="store_true")
     cmd.add_argument("--mc-only",help="Run the model-checker only",action="store_true")
+    cmd.add_argument("--mc-timeout", metavar="T", help="If the model-checker runs more than T seconds, abort (default: 600)", type=int)
     cmd.add_argument("--merger",help="Use the specified file as a base file to merge with the given model",metavar="merger")
     cmd.add_argument("--verbose", help="Increase the output verbosity",action="store_true")
     translator = cmd.add_argument_group('Translator')
@@ -47,7 +48,10 @@ def main():
     args = cmd.parse_args()
     load_model = args.model
 
+
     mc_options = args.mc_options.split(" ") if args.mc_options else []
+    if args.mc_timeout:
+        config.mc_timeout = args.mc_timeout
 
     # check if model file exists
     if not os.path.isfile(load_model):
