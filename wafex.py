@@ -53,6 +53,9 @@ def main():
     if args.mc_timeout:
         config.mc_timeout = args.mc_timeout
 
+    if args.interactive:
+        config.interactive = True
+
     # check if model file exists
     if not os.path.isfile(load_model):
         criticalMsg = "Error {} file not found".format(load_model)
