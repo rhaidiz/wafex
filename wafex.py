@@ -27,23 +27,23 @@ from abstrac_http import AbstractHttpResponse
 def main():
     # command line parsing
     cmd = argparse.ArgumentParser()
-    cmd.add_argument("model",help="The model written in ASLAn++")
-    cmd.add_argument("--c",metavar="concre_file",help="The concretization file, needed for executing the whole trace")
+    cmd.add_argument("model",help="An ASLAn++ model")
+    cmd.add_argument("--c",metavar="concre_file",help="The concretization file, needed for executing Abstract Attack Trace")
     cmd.add_argument("--debug",help="Print debug messages",action="store_true")
-    cmd.add_argument("--mc-only",help="Run the model-checker only",action="store_true")
-    cmd.add_argument("--mc-timeout", metavar="T", help="If the model-checker runs more than T seconds, abort (default: 600)", type=int)
-    cmd.add_argument("--merger",help="Use the specified file as a base file to merge with the given model",metavar="merger")
+    cmd.add_argument("--mc-only",help="Run the model-checker only and exit",action="store_true")
+    cmd.add_argument("--interactive", help="Ask input of every parameter", action="store_true")
+    #cmd.add_argument("--merger",help="Use the specified file as a base file to merge with the given model", metavar="basefile")
     cmd.add_argument("--verbose", help="Increase the output verbosity",action="store_true")
     translator = cmd.add_argument_group('Translator')
     translator_versions = ["1.4.1","1.4.9","1.3"]
     translator.add_argument("--translator",help="Specify a jar translator to use. Allowed values are "+", ".join(translator_versions)+". Default (1.4.1)", metavar='',choices=translator_versions)
 
     requests = cmd.add_argument_group("HTTP(S) options")
-    requests.add_argument("--proxy",help="Use an HTTP proxy when executing requests")
-    requests.add_argument("--keep-set-cookie",help="Keep Set-Cookie header from response",action="store_true")
+    requests.add_argument("--proxy", metavar="ip:port", help="Use an HTTP proxy when executing requests")
 
-    model_checker = cmd.add_argument_group("Model-checker options")
-    model_checker.add_argument("--mc-options",help="String representing the options to use with the selected model checker. For more information on the available options check the model-checker's manual")
+    model_checker = cmd.add_argument_group("Cl-Atse options")
+    model_checker.add_argument("--mc-options",help="String representing the options to pass to Cl-Atse. For more information on the available options check Cl-Atse manual")
+    model_checker.add_argument("--mc-timeout", metavar="T", help="If Cl-Atse runs more than T seconds, abort (default: 600)", type=int)
 
     args = cmd.parse_args()
     load_model = args.model
@@ -90,19 +90,29 @@ def main():
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
-    config.proxy = args.proxy
-    config.keep_cookie = args.keep_set_cookie
+
+    if args.proxy:
+        proxy = args.proxy.split(":")
+        if proxy[0] and proxy[1].isdigit():
+            config.proxy_ip = proxy[0]
+            config.proxy_port = proxy[1]
+            print(config.proxy_ip)
+            print(config.proxy_port)
+        else:
+            criticalMsg = "Invalid proxy format {}".format(args.proxy)
+            logger.error(criticalMsg)
+            exit(-1)
     if args.translator == "1.4.9":
         mc.connector = config.CONNECTOR_1_4_9
     if args.translator == "1.3":
         mc.connector = config.CONNECTOR_1_3
 
-    if args.merger:
-        base_model = args.merger
-        webapp = load_model
-        load_model = "out.aslan++"
-        # merge the files
-        merger(webapp,base_model,load_model)
+    # if args.merger:
+    #     base_model = args.merger
+    #     webapp = load_model
+    #     load_model = "out.aslan++"
+    #     # merge the files
+    #     merger(webapp,base_model,load_model)
 
     # first thing is to confert the ASLan++ model in ASLan
     file_aslan_model, err = mc.aslanpp2aslan(load_model)
