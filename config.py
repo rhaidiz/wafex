@@ -7,7 +7,8 @@ import os
 
 verbosity = False
 concretization = None
-proxy = None
+proxy_ip = None
+proxy_port = None
 keep_cookie = False
 cookies = None
 DEBUG = False

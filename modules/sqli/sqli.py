@@ -207,6 +207,10 @@ def execute_sqlmap(sqlmap_details):
         exit()
     task = sqlmap.new_task()
 
+    # configure proxy
+    if config.proxy_ip and config.proxy_port and config.proxy_port.isdigit():
+        sqlmap.set_option("proxy","http://{}:{}".format(config.proxy_ip, config.proxy_port), task)
+
     url = sqlmap_details["url"]
     method = sqlmap_details["method"]
     vuln_param = sqlmap_details["vuln_param"]

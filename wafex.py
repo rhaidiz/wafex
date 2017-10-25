@@ -96,8 +96,6 @@ def main():
         if len(proxy) == 2 and proxy[0] and proxy[1].isdigit():
             config.proxy_ip = proxy[0]
             config.proxy_port = proxy[1]
-            print(config.proxy_ip)
-            print(config.proxy_port)
         else:
             criticalMsg = "Invalid proxy format {}".format(args.proxy)
             logger.error(criticalMsg)

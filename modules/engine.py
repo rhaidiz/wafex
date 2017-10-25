@@ -182,6 +182,9 @@ def _file_inc(http, s):
 
     # get a Wfuzz object and run a scan
     wz = Wfuzz()
+    # configure proxy
+    if proxy_ip and proxy_port and proxy_port.isdigit():
+        wz.self.set_param("-p","{}:{}".format(proxy_ip,proxy_port))
     wz.set_param("-o","json")
     wz.set_param("-w", payloads_path)
     if post_params:
@@ -258,21 +261,30 @@ def _normal_request(http, s):
     logger.info("Perform normal request")
     url_params = dict()
     for abstract_k in http.get_params:
-        _get = http.get_params[p]
-        k,v = _instantiate_value(_get, http.params[abstract_k])
+        _get = http.get_params[abstract_k]
+        k,v = _instantiate_value(_get[0], _get[1], http.params[abstract_k])
         url_params[k] = v
     debugMsg = url_params
     logger.debug(debugMsg)
     
     post_params = dict()
     for abstract_k in http.post_params:
-        _post = http.post_params[p]
-        k,v = _instantiate_value(_post, http.params[abstract_k])
+        _post = http.post_params[abstract_k]
+        k,v = _instantiate_value(_post[0], _post[1], http.params[abstract_k])
         post_params[k] = v
     debugMsg = post_params
     logger.debug(debugMsg)
 
-    resp = session.request(method=http.method, url=http.url, params=url_params, data=post_params)
+    # configure the proxy if it was set
+    if config.proxy_ip and config.proxy_port:
+        proxies = {
+            "http" : "http:{}:{}".format(config.proxy_ip, config.proxy_port),
+            "https" : "https{}:{}".format(config.proxy_ip, config.proxy_port)
+        }
+        resp = s.request(method=http.method, url=http.url, params=url_params, data=post_params, proxies=proxies)
+    else:
+        resp = s.request(method=http.method, url=http.url, params=url_params, data=post_params)
+
 
     debugMsg = resp.headers
     logger.debug(debugMsg)
@@ -337,8 +349,16 @@ def _run_payload_request(http, s, xss_payload):
     debugMsg = post_params
     logger.debug(debugMsg)
     
-    # run request
-    resp = s.request(method=http.method, url=http.url, params=url_params, data=post_params)
+    # configure the proxy if it was set
+    if config.proxy_ip and config.proxy_port:
+        proxies = {
+            "http" : "http:{}:{}".format(config.proxy_ip, config.proxy_port),
+            "https" : "https{}:{}".format(config.proxy_ip, config.proxy_port)
+        }
+        resp = s.request(method=http.method, url=http.url, params=url_params, data=post_params, proxies=proxies)
+    else:
+        resp = s.request(method=http.method, url=http.url, params=url_params, data=post_params)
+
 
 
 # Pythonic way of dealing with swith case

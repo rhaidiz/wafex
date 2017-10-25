@@ -21,6 +21,7 @@ class Wfuzz:
         self._wfuzz_cmd = ["./wfuzz.py"]
         self._wfuzz_path = "./wfuzz/"
 
+
     def set_param(self, k, v):
         """
         Sets a parameter for executing Wfuzz.
