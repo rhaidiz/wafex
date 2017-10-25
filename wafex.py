@@ -93,7 +93,7 @@ def main():
 
     if args.proxy:
         proxy = args.proxy.split(":")
-        if proxy[0] and proxy[1].isdigit():
+        if len(proxy) == 2 and proxy[0] and proxy[1].isdigit():
             config.proxy_ip = proxy[0]
             config.proxy_port = proxy[1]
             print(config.proxy_ip)
