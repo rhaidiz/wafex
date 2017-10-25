@@ -113,28 +113,19 @@ def main():
     # translate the attack trace in msc
     msc_output = mc.generate_msc(file_attack_trace,file_aslan_model)
 
-    # read the output and parse it
-    msc = mc.parse_msc(msc_output)
-
-    logger.debug("Parsed MSC")
-    for msg in msc:
-        debugMsg = "{} {}:{}:{} {} > tag{}".format(msg.sender , msg.receiver, msg.params, msg.action, msg.action_params, msg.tag)
-        logger.debug(debugMsg)
 
     if not args.mc_only:
 
-         # I should not need this anymore
-         # attack_details = {}
-         # utils.bootstrap(msc_table,attack_details)
-         # sqli(msc_table,attack_details)
-         # filesystem(msc_table,attack_details)
+        # read the output and parse it
+        msc = mc.parse_msc(msc_output)
 
-         # debugMsg = "Attaack details:\n{}".format(attack_details)
-         # logger.debug(debugMsg)
+        logger.debug("Parsed MSC")
+        for msg in msc:
+            debugMsg = "{} {}:{}:{} {} > tag{}".format(msg.sender , msg.receiver, msg.params, msg.action, msg.action_params, msg.tag)
+            logger.debug(debugMsg)
 
-         # execute the attack trace
-         #execute_attack(msc_table,attack_details,load_model)
-         execute_attack(msc)
+        # execute the attack trace
+        execute_attack(msc)
 
 
 

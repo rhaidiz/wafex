@@ -16,6 +16,8 @@ from modules.logger import logger
 # - proxy-cred
 # - sqlmap usage
 
+# request = {url, method, params, cookies, files}
+
 def execute_request(s,request):
     url = request["url"]
     if "method" in request:

@@ -213,6 +213,13 @@ def parse_msc(aat):
     request_regexp =  re.compile(r'(?P<sender>.*?)\*-\*(?P<receiver>.*?):(?:.*?)http_request\((?P<page>.*)\,(?P<params>.*)\,(?P<cookies>.*)\)\.tag(?P<tag>[0-9]*)')
     response_regexp = re.compile(r'(?P<sender>.*?)\*-\*(?P<receiver>.*?):http_response\((?P<page>.*)\,(?P<content>.*)\,(?P<cookies>.*)\)\.tag(?P<tag>[0-9]*)')
 
+    # load the concretization file
+    concretization_data = ""
+    print(config.concretization)
+    with open(config.concretization,"r") as data_file:
+         concretization_data = json.load(data_file)
+         data_file.close()
+
     # is an array containing AbstractHttpRequest
     msc = []
     # aat is a list containing [request, response, ...] where every request
@@ -239,8 +246,16 @@ def parse_msc(aat):
             ab_http_request.params = _get_params(params)
             cookies = request_match.group("cookies")
             ab_http_request.cookies = _get_params(cookies)
-            ab_http_request.tag = request_match.group("tag")
-            #ab_http_request.attack = _identify_attack(ab_http_request)
+            tag = request_match.group("tag")
+            ab_http_request.tag = tag
+
+            # get the concrete parameter for this request
+            tagstr = "tag{}".format(tag)
+            ab_http_request.url = concretization_data[tagstr]["url"]
+            ab_http_request.method = concretization_data[tagstr]["method"]
+            ab_http_request.get_params = concretization_data[tagstr]["get_params"]
+            ab_http_request.post_params = concretization_data[tagstr]["post_params"]
+            ab_http_request.cookies = concretization_data[tagstr]["cookies"]
 
         # parse the response
         response_match = response_regexp.match(line_response)
@@ -279,10 +294,8 @@ def _identify_action(ab_request):
     """ Returns action code and an array of parameters required for the action. """
     if "i" == ab_request.sender and "webapplication" == ab_request.receiver:
         for c in ab_request.params:
-            if(len(c) < 2):
-                return -1
-            key = c[0]
-            value = c[1]
+            key = c
+            value = ab_request.params[c]
             if "sqli_read" in value:
                 # this is a SQLi for reading a file
                 file_to_read_regexp = re.compile(r'file\((?P<file>.*)\)')
@@ -310,17 +323,27 @@ def _identify_action(ab_request):
                 return 5, [key]
     elif "honest" == ab_request.sender and "webapplication" == ab_request.receiver:
         for c in ab_request.params:
-            if(len(c) < 2):
-                return -1
-            key = c[0]
-            value = c[1]
+            key = c
+            value = ab_request.params[c]
             if "xss" in value:
                 # this is a reflected XSS since the honest entity is
                 # communicating with the webapplication
                 return 6,[key]
-    return -1
+    elif "webapplication" == ab_request.response.sender and "honest" == ab_request.response.sender:
+        # this is the response to the request
+        if xss in ab_request.response.content:
+            # this is an XSS response to the honest
+            return 7,[None]
+    return -1, [None]
 
-def _get_params(line): 
-    return [c.split(".eq.") for c in line.split(".emp.")]
+def _get_params(line):
+    # parses the parameters line and creates a dictionary
+    # (probably there is a more pythonic way of doing this)
+    ret = dict()
+    if line == "none":
+        return ret
+    for c in [c.split(".eq.") for c in line.split(".emp.")]:
+        ret[c[0]] = c[1]
+    return ret
 
 

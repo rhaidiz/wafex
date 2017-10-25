@@ -1,10 +1,5 @@
 #!/usr/bin/env python3.5
 
-
-"""
-This library provides convenient methods for executing wfuzz
-NOTE: Only tested with python3.5
-"""
 import time
 import json
 import atexit
@@ -16,47 +11,52 @@ import subprocess
 
 from modules.logger import logger
 
+class Wfuzz:
+    """
+    This class provides a python wrapper for running wfuzz
+    NOTE: Only tested with python3.5
+    """
 
-WFUZZ          = ["./wfuzz.py"]
+    def __init__(self):
+        self._wfuzz_cmd = ["./wfuzz.py"]
+        self._wfuzz_path = "./wfuzz/"
+
+    def set_param(self, k, v):
+        """
+        Sets a parameter for executing Wfuzz.
+        :param k: flag paramenter
+        :param v: value of the flag
+        """
+        if k and v:
+            # extend if both k and v are given
+            self._wfuzz_cmd.extend([k,v])
+        elif k:
+            # append if only k is give (a boolean flag)
+            self._wfuzz_cmd.append(k)
 
 
-
-"""
-Configure the command line parameters
-"""
-def set_param(k,v=""):
-    global WFUZZ
-    WFUZZ.append(k)
-    if v != "":
-        WFUZZ.append(v)
-
-"""
-Execute the fuzzer and get the json back
-"""
-
-def run_wfuzz(url):
-    global WFUZZ
-    WFUZZ.append(url)
-    debugMsg = "WFUZZ {}".format(WFUZZ)
-    logger.debug(debugMsg)
-    p1 = subprocess.Popen(WFUZZ,cwd="./wfuzz/",universal_newlines=True,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
-    try:
-        out, err = p1.communicate(timeout=10)
-        debugMsg = "wfuzz out {}".format(out)
+    def run_wfuzz(self, url):
+        """
+        Executes Wfuzz and returns a list of files retrieved during the fuzzing.
+        :param url: the url of the target
+        """
+        self._wfuzz_cmd.append(url)
+        debugMsg = "executing WFUZZ {}".format(self._wfuzz_cmd)
         logger.debug(debugMsg)
-        return json.loads(out)
-    except subprocess.TimeoutExpired:
-        p1.kill()
-        logger.critical("Error: wfuzz timed out.")
-        exit()
-
-
-if __name__ == "__main__":
-    set_param("-w","prova.txt")
-    set_param("--basic","regis:password")
-    set_param("-o","json")
-    set_param("--ss","root")
-    o = run_wfuzz("https://157.27.244.25/chained/chained/index.php?file=FUZZ")
-    print(o)
-
+        p1 = subprocess.Popen(self._wfuzz_cmd, cwd=self._wfuzz_path, universal_newlines=True,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        try:
+            out, err = p1.communicate(timeout=10)
+            debugMsg = "wfuzz out {}".format(out)
+            logger.debug(debugMsg)
+            # return a list containing the successful URL
+            urls = []
+            json_out = json.loads(out)
+            for req in json_out:
+                urls.append(req["url"])
+            return urls
+        except subprocess.TimeoutExpired:
+            p1.kill()
+            logger.critical("Error: wfuzz timed out.")
+            exit()
+    
 
