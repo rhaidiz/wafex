@@ -15,14 +15,19 @@ Web Application Formal Exploiter (WAFEx) is a protype tool written in python to 
 ## Installation
 Clone the master repository, set execution privileges:
 
-```chmod +x wafex.py```
+```
+chmod +x wafex.py
+```
 
 Run WAFex:
-```wafex.py``` 
+```
+wafex.py
+``` 
 
 ## Usage
 
-```usage: wafex.py [-h] [--c concre_file] [--debug] [--mc-only] [--interactive]
+```
+usage: wafex.py [-h] [--c concre_file] [--debug] [--mc-only] [--interactive]
                 [--verbose] [--translator] [--proxy ip:port]
                 [--mc-options MC_OPTIONS] [--mc-timeout T]
                 model
@@ -52,7 +57,8 @@ Cl-Atse options:
                         For more information on the available options check
                         Cl-Atse manual
   --mc-timeout T        If Cl-Atse runs more than T seconds, abort (default:
-                        600)```
+                        600)
+```
 
 ## Output example
 
