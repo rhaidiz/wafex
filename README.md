@@ -13,10 +13,16 @@ Web Application Formal Exploiter (WAFEx) is a protype tool written in python to 
 
 
 ## Installation
-Clone the master repository, set execution privileges:
+Clone the master repository and set execution privileges:
 
 ```
 chmod +x wafex.py
+```
+
+Put sqlmap and WFuzz in the root directory of WAFEx:
+```
+mv /path/to/download/sqlmap /path/to/wafex/
+mv /path/to/download/wfuzz /path/to/wafex/
 ```
 
 Run WAFex:
