@@ -11,12 +11,19 @@ import config
 import os.path
 import subprocess
 
+from sys import platform
 from modules.logger import logger
 from abstrac_http import AbstractHttpRequest
 from abstrac_http import AbstractHttpResponse
 
 # external software
-CLATSE = "modules/mc/cl-atse_x86_64-mac"
+if platform == "linux" or platform == "linux2":
+    CLATSE = "modules/mc/cl-atse_i686"
+elif platform == "darwin":
+    CLATSE = "modules/mc/cl-atse_x86_64-mac"
+elif platform == "win32":
+    CLATSE = "modules/mc/cl-atse_i686-windows.exe"
+
 
 # default value for the connector
 connector = config.CONNECTOR_1_4_9
