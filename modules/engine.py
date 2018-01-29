@@ -34,7 +34,7 @@ from os import listdir
 intruder_session = requests.Session()
 honest_session = requests.Session()
 
-xss_payloads = ["ciccio", "xss", "xss1"]
+xss_payloads = ["<script>alert(1);</script>","<ScRipT>alert('XSS');</ScRipT>", "<script>alert(123)</script>"]
 sqli_bypass_payloads = ["' or '1'='1", "or 1=1"]
 wfuzz_payloads = ["../{}\n", "../../{}\n"]
 
