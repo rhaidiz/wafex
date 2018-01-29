@@ -22,7 +22,7 @@ chmod +x wafex.py
 Run WAFex:
 ```
 wafex.py
-``` 
+```
 
 ## Usage
 
